@@ -17,6 +17,7 @@ int main(int argc, char *argv[])
   struct sockaddr_in serv_addr, clt_addr;
   socklen_t addrlen;
   char buffer[256];
+  
   if(argc != 2) { 
     fprintf(stderr,"Usage: %s <port>\n", argv[0]);
     return 1;
@@ -66,7 +67,7 @@ for(;;){
   	else buffer[n] = '\0';
 	char *toke;  
 	printf("SERVER GOT MESSAGE: %s\n", buffer); 
-    	toke = strtok(buffer," ,.-");
+    	toke = strtok(buffer," ");
 	command = "stop";
 	if(!found && strcmp(toke, command)==0){
 		msg = "Server stopping.\n";
@@ -77,29 +78,42 @@ for(;;){
 		printf("server stopping\n");
 		exit(0);
 	}
-	command = "ls";
-	msg = "ls-remote";
+	command = "ls-remote";
+	msg = "ls-remote\0";
 	if(!found && strcmp(toke,command)==0){
 		n = send(newsockfd,msg,strlen(msg),0);
 		printf("ls-remote\n");
 		found = 1;
 	}
 	command = "get";
-	msg = "get";
+	msg = "get\0";
 	if(!found && strcmp(toke,command)==0){
-		n = send(newsockfd,msg,strlen(msg),0);
-		printf("getting\n");
+		toke = strtok(NULL ," ");
+		FILE *f = fopen(toke,"r" );
+		msg = "File transmitted sucesfully\n\0";
+		if (f == NULL||toke == NULL){
+			msg = "fail\0";
+			n = send(newsockfd,msg,sizeof(msg),0);
+			msg = "Invalid file/format. Please use get <filename>\n\0";
+		}
+		else{
+			n = fread(buffer,sizeof(buffer),1,f);
+			if(n < 0) printf("Error reading file");
+			n = send(newsockfd, buffer, sizeof(buffer),0);
+		}
+		printf("sending file: %s\n", toke);
+		n = send(newsockfd,msg,sizeof(msg),0);
 		found = 1;
 	}
 	command = "put";
-	msg = "putting";
+	msg = "putting\0";
 	if(!found && strcmp(toke,command)==0){
 		n = send(newsockfd,msg,strlen(msg),0);
 		printf("putting\n");
 		found = 1;
 	}
 	if(!found){
-		msg = "Invalid command. Please send one of the following valid commands: ls-remote, get <filename>, put <filename>, stop.";
+		msg = "Invalid command. Please send one of the following valid commands: ls-remote, get <filename>, put <filename>, stop.\0";
 		n = send(newsockfd, msg, strlen(msg),0);
 	}
     }
