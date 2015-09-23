@@ -77,7 +77,7 @@ for(;;){
 		printf("server stopping\n");
 		exit(0);
 	}
-	command = "ls-remote";
+	command = "ls";
 	msg = "ls-remote";
 	if(!found && strcmp(toke,command)==0){
 		n = send(newsockfd,msg,strlen(msg),0);
