@@ -17,6 +17,7 @@ int main(int argc, char* argv[])
   char buffer[256];
   char str[256];
   char *toke;
+  FILE *f;
   if(argc != 3) {
     fprintf(stderr, "Usage: %s <hostname> <port>\n", argv[0]);
     return 1;
@@ -69,16 +70,16 @@ for(;;){
 	exit(0);
    }
   else if(strcmp(toke,"get")==0){
-	FILE *f;
 	toke = strtok(NULL," ");
 	strcpy(str,toke);
 	n = recv(sockfd, buffer , 255, 0);
 	printf("Retrieve file '%s' from server: %s\n", str,buffer);
+	strcpy(str,buffer);
 	if(strcmp(buffer,"succesful")==0){
-		f = fopen("derpt","w");
+		f = fopen("receivedfile","wb");
 		n = recv(sockfd, buffer, 255, 0);
 		if(f == NULL) printf("Could not write received file.");
-		fwrite(buffer,sizeof(buffer),1,f);
+		fwrite(buffer,strlen(buffer),1,f);
 		fclose(f);
 	}
 	else{
@@ -93,6 +94,7 @@ for(;;){
   	else buffer[n] = '\0';
   	printf("Server says: %s\n", buffer);
   }
+ memset(buffer,'\0',sizeof(buffer));
 }
   close(sockfd);
   return 0;

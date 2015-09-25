@@ -90,8 +90,8 @@ for(;;){
 	msg = "get\0";
 	if(!found && strcmp(toke,command)==0){
 		toke = strtok(NULL ," ");
-		FILE *f = fopen(toke,"r" );
-		msg = "sucesful";
+		FILE *f = fopen(toke,"rb" );
+		msg = "succesful";
 		if (f == NULL||toke == NULL){
 			msg = "failed";
 			n = send(newsockfd,msg,sizeof(buffer),0);
