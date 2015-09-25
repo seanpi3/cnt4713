@@ -62,6 +62,7 @@ for(;;){
 	char *command;
     for(;;){
 	int found = 0;
+	memset(buffer, '\0', sizeof(buffer));
   	n = recv(newsockfd, buffer, 255, 0); 
   	if(n < 0) syserr("can't receive from client"); 
   	else buffer[n] = '\0';
@@ -90,19 +91,21 @@ for(;;){
 	if(!found && strcmp(toke,command)==0){
 		toke = strtok(NULL ," ");
 		FILE *f = fopen(toke,"r" );
-		msg = "File transmitted sucesfully\n\0";
+		msg = "sucesful";
 		if (f == NULL||toke == NULL){
-			msg = "fail\0";
-			n = send(newsockfd,msg,sizeof(msg),0);
-			msg = "Invalid file/format. Please use get <filename>\n\0";
+			msg = "failed";
+			n = send(newsockfd,msg,sizeof(buffer),0);
+			msg = "Invalid file/format. Please use get <filename>\0";
+			n = send(newsockfd,msg,sizeof(buffer),0);
 		}
 		else{
+			n = send(newsockfd,msg,sizeof(buffer),0);
+			memset(buffer, '\0', sizeof(buffer));
 			n = fread(buffer,sizeof(buffer),1,f);
 			if(n < 0) printf("Error reading file");
 			n = send(newsockfd, buffer, sizeof(buffer),0);
 		}
 		printf("sending file: %s\n", toke);
-		n = send(newsockfd,msg,sizeof(msg),0);
 		found = 1;
 	}
 	command = "put";

@@ -15,6 +15,7 @@ int main(int argc, char* argv[])
   struct hostent* server;
   struct sockaddr_in serv_addr;
   char buffer[256];
+  char str[256];
   char *toke;
   if(argc != 3) {
     fprintf(stderr, "Usage: %s <hostname> <port>\n", argv[0]);
@@ -69,21 +70,29 @@ for(;;){
    }
   else if(strcmp(toke,"get")==0){
 	FILE *f;
+	toke = strtok(NULL," ");
+	strcpy(str,toke);
 	n = recv(sockfd, buffer , 255, 0);
-	if(strcmp(buffer,"fail")==0){
-		n = recv(sockfd, buffer ,255, 0);
-	}
-	else{
-		f = fopen("receivedfile","w");
+	printf("Retrieve file '%s' from server: %s\n", str,buffer);
+	if(strcmp(buffer,"succesful")==0){
+		f = fopen("derpt","w");
+		n = recv(sockfd, buffer, 255, 0);
 		if(f == NULL) printf("Could not write received file.");
-		fwrite(buffer, sizeof(buffer), 1, f);
+		fwrite(buffer,sizeof(buffer),1,f);
 		fclose(f);
 	}
+	else{
+		memset(buffer, '\0',sizeof(buffer));
+		n = recv(sockfd,buffer,255,0);
+		printf("%s\n",buffer);
+	}
   }
-  n = recv(sockfd, buffer, 255, 0);
-  if(n < 0) syserr("can't receive from server");
-  else buffer[n] = '\0';
-  printf("Server says: %s\n", buffer);
+  else{
+  	n = recv(sockfd, buffer, 255, 0);
+  	if(n < 0) syserr("can't receive from server");
+  	else buffer[n] = '\0';
+  	printf("Server says: %s\n", buffer);
+  }
 }
   close(sockfd);
   return 0;
