@@ -91,9 +91,8 @@ for(;;){
 		strcpy(str,toke);
 		n = recv(sockfd, buffer ,sizeof(buffer), 0);
 		printf("Retrieve file '%s' from server: %s\n", str,buffer);
-		strcpy(str,buffer);
 		if(strcmp(buffer,"succesful")==0){
-			f = fopen("test","wb");
+			f = fopen(str,"wb");
 			n = recv(sockfd, buffer,sizeof(buffer), 0);
 			if(f == NULL) printf("Could not write received file.");
 			fwrite(buffer,strlen(buffer),1,f);

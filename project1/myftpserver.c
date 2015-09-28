@@ -110,7 +110,6 @@ for(;;){
 		else{
 			n = send(newsockfd,msg,sizeof(buffer),0);
 			printf("SENT:%s\n",msg);
-			memset(buffer, '\0', sizeof(buffer));
 			n = fread(buffer,sizeof(buffer),1,f);
 			if(n < 0) printf("Error reading file");
 			n = send(newsockfd, buffer, sizeof(buffer),0);
