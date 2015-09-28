@@ -1,3 +1,3 @@
 ftpproject: myftpserver.c
-	gcc -o server myftpserver.c
-	gcc -o client myftpclient.c
+	gcc -o server/server  myftpserver.c
+	gcc -o client/client  myftpclient.c

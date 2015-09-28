@@ -16,7 +16,6 @@ int main(int argc, char *argv[])
   int sockfd, newsockfd, portno, n;
   struct sockaddr_in serv_addr, clt_addr;
   socklen_t addrlen;
-  char buffer[256];
   
   if(argc != 2) { 
     fprintf(stderr,"Usage: %s <port>\n", argv[0]);
@@ -49,75 +48,92 @@ for(;;){
   addrlen = sizeof(clt_addr); 
   if(newsockfd < 0){
 	close(newsockfd);	
- 	printf("Cannot accept client");
-  } 
- printf("Client connected...\n");
+ 	printf("Cannot accept client\n");
+  }
+  else printf("Client connected...\n");
   int pid = fork();
   if(pid<0) syserr("Error");
   else if(pid == 0) {
 	close(newsockfd);
   }
   else{	
+  	char buffer[256];
+	char command[256];
 	char *msg;
-	char *command;
-    for(;;){
-	int found = 0;
-	memset(buffer, '\0', sizeof(buffer));
-  	n = recv(newsockfd, buffer, 255, 0); 
-  	if(n < 0) syserr("can't receive from client"); 
-  	else buffer[n] = '\0';
+	DIR *dir;
+	struct dirent *ent;
 	char *toke;  
+	int found;
+    for(;;){
+	found = 0;
+	memset(buffer,'\0',sizeof(buffer));
+	memset(command,'\0',sizeof(command));
+  	n = recv(newsockfd, buffer, sizeof(buffer), 0); 
+  	if(n < 0) syserr("can't receive from client"); 
+	else buffer[n] = '\0';
 	printf("SERVER GOT MESSAGE: %s\n", buffer); 
     	toke = strtok(buffer," ");
-	command = "stop";
-	if(!found && strcmp(toke, command)==0){
+	printf("Toke:%s\n",toke);
+	if(strcmp(toke,"stop")==0){
 		msg = "Server stopping.\n";
 		n = send(newsockfd, msg, strlen(msg),0);
-		found = 1;
 		close(newsockfd);
 		close(sockfd);
+		found = 0;
 		printf("server stopping\n");
 		exit(0);
 	}
-	command = "ls-remote";
-	msg = "ls-remote\0";
-	if(!found && strcmp(toke,command)==0){
-		n = send(newsockfd,msg,strlen(msg),0);
+	else if(strcmp(toke,"ls-remote")==0){
+		dir = opendir("./files");
+		if(dir != NULL){
+			while((ent = readdir(dir)) != NULL){
+				msg = ent->d_name;
+				n = send(newsockfd,msg,strlen(msg),0);
+				printf("SENT:%s\n",msg);
+				msg = "\n";
+				n = send(newsockfd,msg,strlen(msg),0);	
+				printf("SENT:%s\n",msg);
+			}
+		}
+		else{
+			printf("null directory\n");
+		}
+		closedir(dir);
 		printf("ls-remote\n");
-		found = 1;
 	}
-	command = "get";
-	msg = "get\0";
-	if(!found && strcmp(toke,command)==0){
+	else if(strcmp(toke,"get")==0){
 		toke = strtok(NULL ," ");
 		FILE *f = fopen(toke,"rb" );
 		msg = "succesful";
 		if (f == NULL||toke == NULL){
 			msg = "failed";
 			n = send(newsockfd,msg,sizeof(buffer),0);
+			printf("SENT:%s\n",msg);
 			msg = "Invalid file/format. Please use get <filename>\0";
 			n = send(newsockfd,msg,sizeof(buffer),0);
+			printf("SENT:%s\n",msg);
 		}
 		else{
 			n = send(newsockfd,msg,sizeof(buffer),0);
+			printf("SENT:%s\n",msg);
 			memset(buffer, '\0', sizeof(buffer));
 			n = fread(buffer,sizeof(buffer),1,f);
 			if(n < 0) printf("Error reading file");
 			n = send(newsockfd, buffer, sizeof(buffer),0);
+			printf("SENT:%s\n",buffer);
 		}
-		printf("sending file: %s\n", toke);
+	}
+	else if(strcmp(toke,"put")==0){
+		msg = "putting\0";
+		n = send(newsockfd,msg,sizeof(buffer),0);
+		printf("SENT:%s\n",msg);
 		found = 1;
 	}
-	command = "put";
-	msg = "putting\0";
-	if(!found && strcmp(toke,command)==0){
-		n = send(newsockfd,msg,strlen(msg),0);
-		printf("putting\n");
-		found = 1;
-	}
-	if(!found){
+	else{
 		msg = "Invalid command. Please send one of the following valid commands: ls-remote, get <filename>, put <filename>, stop.\0";
-		n = send(newsockfd, msg, strlen(msg),0);
+		n = send(newsockfd, msg,sizeof(buffer),0);
+		printf("SENT:%s\n",msg);
+		found = 1;
 	}
     }
   	close(newsockfd); 
