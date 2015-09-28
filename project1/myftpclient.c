@@ -61,7 +61,8 @@ for(;;){
   fgets(buffer, sizeof(buffer), stdin);
   n=strlen(buffer);
   if(n>0 && buffer[n-1] == '\n') buffer[n-1]='\0';
-  toke = strtok(buffer, " ");
+  strcpy(str, buffer);
+  toke = strtok(str, " ");
 
   //input conditions
   if(strcmp(toke,"ls-local")== 0){
