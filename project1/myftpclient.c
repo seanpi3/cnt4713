@@ -72,7 +72,7 @@ for(;;){
 	closedir(dir);
   }
   else{
-	if(strlen(buffer)>0) n = send(sockfd, buffer, sizeof(buffer), 0); 
+	if(strlen(buffer)>1) n = send(sockfd, buffer, sizeof(buffer), 0); 
  	if(n < 0) lostconn();
   	else if(strcmp(toke, "exit")==0 || strcmp(toke,"quit")==0 || strcmp(buffer,"stop")==0){
 		printf("Connection to the server %s:%s terminated. Bye now!\n", argv[1],argv[2]);

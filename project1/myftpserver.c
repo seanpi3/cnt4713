@@ -75,6 +75,7 @@ for(;;){
 	int filesize;
 	struct stat st;
     for(;;){
+	memset(buffer,0,sizeof(buffer));
   	n = recv(newsockfd, buffer, sizeof(buffer), 0); 
   	if(n < 0) lostconn();
 	else buffer[n] = '\0';
