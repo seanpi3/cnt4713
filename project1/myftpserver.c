@@ -12,7 +12,10 @@
 #include <arpa/inet.h>
 
 void syserr(char *msg) { perror(msg); exit(-1); }
-
+void lostconn() {
+	printf("Client lost connection");
+	pthread_exit();
+}
 
 
 int main(int argc, char *argv[])
@@ -54,7 +57,8 @@ for(;;){
 	close(newsockfd);	
  	printf("Cannot accept client\n");
   }
-  else printf("Client connected...\n");
+ else{
+  printf("Client connected...\n");
   int pid = fork();
   if(pid<0) syserr("Error");
   else if(pid == 0) {
@@ -72,16 +76,14 @@ for(;;){
 	struct stat st;
     for(;;){
   	n = recv(newsockfd, buffer, sizeof(buffer), 0); 
-  	if(n < 0){
-		printf("Client lost connection");
-		pthread_exit(); 
-	}
+  	if(n < 0) lostconn();
 	else buffer[n] = '\0';
 	printf("SERVER GOT MESSAGE: %s\n", buffer); 
     	toke = strtok(buffer," ");
 	if(strcmp(toke,"stop")==0){
 		msg = "Server stopping.\n";
 		n = send(newsockfd, msg, strlen(msg),0);
+		if(n<0) lostconn();
 		close(newsockfd);
 		close(sockfd);
 		printf("server stopping\n");
@@ -98,8 +100,10 @@ for(;;){
 				if(strcmp(ent->d_name, ".") && strcmp(ent->d_name,"..") ){
 					msg = ent->d_name;
 					n = send(newsockfd,msg,strlen(msg),0);
+					if(n<0) lostconn();
 					msg = "\n";
 					n = send(newsockfd,msg,strlen(msg),0);	
+					if(n<0) lostconn();
 				}
 			}
 		}
@@ -118,21 +122,26 @@ for(;;){
 		if (f == -1 ){
 			msg = "failed";
 			n = send(newsockfd,msg,sizeof(buffer),0);
+			if(n<0) lostconn();
 			msg = "Invalid file/format. Please use get <filename>\0";
 			n = send(newsockfd,msg,sizeof(buffer),0);
+			if(n<0) lostconn();
 			printf("SENT:%s\n",msg);
 		}
 		else{
 			n = send(newsockfd,msg,sizeof(buffer),0);
+			if(n<0) lostconn();
 			printf("SENT:%s\n",msg);
 			uint32_t un = htonl((uint32_t)filesize);
 			n = send(newsockfd,&un,sizeof(uint32_t),0);
+			if(n<0) lostconn();
 			int bytes_sent,bytes_read, bytes_remaining, bytes_to_send;
 			bytes_remaining = filesize;
 			while(bytes_remaining > 0){
 				bytes_read = read(f,buffer,sizeof(buffer));
+				if(bytes_read < 0) lostconn();
 				bytes_sent = send(newsockfd, buffer,sizeof(buffer),0);
-				if(bytes_sent < 0) printf("Error sending file");
+				if(bytes_sent < 0) lostconn();
 				bytes_remaining -= bytes_sent;
 				printf("Transferring %d bits to client... %d remaining\n",bytes_sent,bytes_remaining);
 			}
@@ -147,17 +156,21 @@ for(;;){
 		FILE *f = fopen(filename,"a");
 		uint32_t sizeIn;
 		n = recv(newsockfd,&sizeIn, sizeof(uint32_t),0);
+		if(n<0) lostconn();
 		uint32_t filesize = ntohl(sizeIn);
 		int bytes_read,bytes_toRead,bytes_written;
 		bytes_toRead = filesize;
 		printf("Receiving %d bits from client\n",filesize);
 		while(bytes_toRead > 0){
 			bytes_read = read(newsockfd,buffer,sizeof(buffer));
+			if(bytes_read <0) lostconn();
 			if(bytes_toRead<sizeof(buffer)){
 				bytes_written = fwrite(buffer,bytes_toRead,1,f);
+				if(bytes_written<0) lostconn();
 			}
 			else{
 				bytes_written = fwrite(buffer,sizeof(buffer),1,f);
+				if(bytes_written < 0) lostconn();
 			}
 			bytes_toRead -= bytes_read;
 			if(bytes_written<0) syserr("Error writing");
@@ -169,11 +182,13 @@ for(;;){
 	else{
 		msg = "Invalid command. Please send one of the following valid commands: ls-remote, get <filename>, put <filename>, stop.\0";
 		n = send(newsockfd, msg,sizeof(buffer),0);
+		if(n<0) lostconn();
 		printf("SENT:%s\n",msg);
 	}
     }
   	close(newsockfd); 
   }
+ }
 }
   close(sockfd); 
   return 0;

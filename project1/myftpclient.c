@@ -11,6 +11,10 @@
 #include <sys/stat.h>
 
 void syserr(char* msg) { perror(msg); exit(-1); }
+void lostconn(){
+  	printf ("Connection to the server has been lost.");
+	exit(0);
+}
 
 int main(int argc, char* argv[])
 {
@@ -33,20 +37,9 @@ int main(int argc, char* argv[])
   }
   portno = atoi(argv[2]);
   
-  /*{
-  struct in_addr **addr_list; int i;
-  printf("Official name is: %s\n", server->h_name);
-  printf("    IP addresses: ");
-  addr_list = (struct in_addr **)server->h_addr_list;
-  for(i = 0; addr_list[i] != NULL; i++) {
-    printf("%s ", inet_ntoa(*addr_list[i]));
-  }
-  printf("\n");
-  }*/
 
   sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if(sockfd < 0) syserr("can't open socket");
-  //printf("create socket...\n");
 
   memset(&serv_addr, 0, sizeof(serv_addr));
   serv_addr.sin_family = AF_INET;
@@ -80,10 +73,7 @@ for(;;){
   }
   else{
   	n = send(sockfd, buffer, sizeof(buffer), 0); 
- 	if(n < 0){
-  		printf ("Connection to the server %s:%s has been lost.", argv[1],argv[2]);
-  		exit(0);
-  	}
+ 	if(n < 0) lostconn();
   	else if(strcmp(toke, "exit")==0 || strcmp(toke,"quit")==0 || strcmp(buffer,"stop")==0){
 		printf("Connection to the server %s:%s terminated. Bye now!\n", argv[1],argv[2]);
 		close(sockfd);
@@ -92,32 +82,37 @@ for(;;){
   	else if(strcmp(toke,"get")==0){
 		toke = strtok(NULL," ");
 		strcpy(filename,toke);
+		memset(buffer,0,sizeof(buffer));
 		n = recv(sockfd, buffer ,sizeof(buffer),0);
+		if(n<0) lostconn();
 		strcpy(getStatus,buffer);
 		if(strcmp(getStatus,"succesful")==0){
 			FILE *f = fopen(filename,"a");
 			uint32_t sizeIn;
 			n = recv(sockfd,&sizeIn,sizeof(uint32_t),0);
+			if(n<0) lostconn();
 			uint32_t filesize = ntohl(sizeIn);
 			int bytes_read,bytes_toRead, bytes_written;
 			bytes_toRead = filesize;
 			while(bytes_toRead > 0){
+				memset(buffer,0,sizeof(buffer));
 				bytes_read = read(sockfd,buffer,sizeof(buffer));
+				if(bytes_read <0) syserr("error reading file");
 				if(bytes_toRead< sizeof(buffer)){
 					bytes_written = fwrite(buffer, bytes_toRead,1,f);
 				}
 				else{
 					bytes_written = fwrite(buffer,sizeof(buffer),1,f);
 				}
-				if(bytes_written <0) syserr("Error writing");
+				if(bytes_written <0) syserr("error writing");
 				bytes_toRead -= bytes_read;
 			}
 			fclose(f);
 		}	
 		else{
-			printf("unsuccesful");
-			memset(buffer, '\0',sizeof(buffer));
+			memset(buffer,0,sizeof(buffer));
 			n = recv(sockfd,buffer,sizeof(buffer),0);
+			if(n<0) lostconn();
 			printf("%s\n",buffer);
 		}
 		printf("Retrieve file '%s' from server: %s\n",filename,getStatus);
@@ -136,10 +131,13 @@ for(;;){
 		else{
 			uint32_t un = htonl((uint32_t)filesize);
 			n = send(sockfd,&un,sizeof(uint32_t),0);
+			if(n<0) lostconn();
 			int bytes_sent,bytes_read,bytes_remaining;
 			bytes_remaining = filesize;
 			while(bytes_remaining > 0 ){
+				memset(buffer,0,sizeof(buffer));
 				bytes_read = read(f,buffer,sizeof(buffer));
+				if(bytes_read<0) syserr("error reading file");
 				bytes_sent = send(sockfd, buffer,sizeof(buffer),0);
 				if(bytes_sent<0) syserr("error sending file");
 				bytes_remaining -= bytes_sent; 
@@ -151,13 +149,15 @@ for(;;){
 	}
 	else if(strcmp(toke,"ls-remote")==0){
 		printf("Files at the server(%s):\n",argv[1]);
+		memset(buffer,0,sizeof(buffer));
 		n = recv(sockfd, buffer, sizeof(buffer), 0);
-		if( n < 0 ) syserr("can't receive from server");
+		if(n<0) lostconn();
 		printf("%s", buffer);
 	}
   	else{
+		memset(buffer,0,sizeof(buffer));
   		n = recv(sockfd, buffer,sizeof(buffer), 0);
-  		if(n < 0) syserr("can't receive from server");
+		if(n<0) lostconn();
   		printf("%s\n", buffer);
   	}
   }
