@@ -96,13 +96,18 @@ for(;;){
 	else if(strcmp(toke,"ls-remote")==0){
 		dir = opendir(".");
 		if(dir != NULL){
+			int numfiles = -2;
+			while((ent = readdir(dir)) != NULL){
+				numfiles++;
+			}
+			uint32_t un = htonl((uint32_t)numfiles);
+			n = send(newsockfd,&un,sizeof(uint32_t),0);
+			if(n<0) lostconn();
+			dir = opendir(".");
 			while((ent = readdir(dir)) != NULL){
 				if(strcmp(ent->d_name, ".") && strcmp(ent->d_name,"..") ){
 					msg = ent->d_name;
-					n = send(newsockfd,msg,strlen(msg),0);
-					if(n<0) lostconn();
-					msg = "\n";
-					n = send(newsockfd,msg,strlen(msg),0);	
+					n = send(newsockfd,msg,sizeof(buffer),0);
 					if(n<0) lostconn();
 				}
 			}

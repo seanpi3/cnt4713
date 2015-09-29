@@ -72,7 +72,7 @@ for(;;){
 	closedir(dir);
   }
   else{
-  	n = send(sockfd, buffer, sizeof(buffer), 0); 
+	if(strlen(buffer)>0) n = send(sockfd, buffer, sizeof(buffer), 0); 
  	if(n < 0) lostconn();
   	else if(strcmp(toke, "exit")==0 || strcmp(toke,"quit")==0 || strcmp(buffer,"stop")==0){
 		printf("Connection to the server %s:%s terminated. Bye now!\n", argv[1],argv[2]);
@@ -150,9 +150,17 @@ for(;;){
 	else if(strcmp(toke,"ls-remote")==0){
 		printf("Files at the server(%s):\n",argv[1]);
 		memset(buffer,0,sizeof(buffer));
-		n = recv(sockfd, buffer, sizeof(buffer), 0);
+		uint32_t numIn;
+		n = recv(sockfd, &numIn,sizeof(uint32_t),0);
 		if(n<0) lostconn();
-		printf("%s", buffer);
+		uint32_t numFiles = ntohl(numIn);
+		printf("%d files at server\n",numFiles);
+		while(numFiles > 0){
+			n = recv(sockfd, buffer, sizeof(buffer), 0);
+			if(n<0) lostconn();
+			printf("%s\n", buffer);
+			numFiles--;
+		}
 	}
   	else{
 		memset(buffer,0,sizeof(buffer));
