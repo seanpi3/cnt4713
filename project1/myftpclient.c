@@ -7,6 +7,8 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <dirent.h>
+#include <arpa/inet.h>
+#include <sys/stat.h>
 
 void syserr(char* msg) { perror(msg); exit(-1); }
 
@@ -18,7 +20,8 @@ int main(int argc, char* argv[])
   char buffer[256];
   char str[256];
   char *toke;
-  FILE *f;
+  char filename[256];
+  char getStatus[256];
   if(argc != 3) {
     fprintf(stderr, "Usage: %s <hostname> <port>\n", argv[0]);
     return 1;
@@ -57,7 +60,7 @@ int main(int argc, char* argv[])
   struct dirent *ent;
 for(;;){  
   printf("%s:%s> ",argv[1],argv[2]);
-  memset(buffer,'\0',sizeof(buffer));
+  memset(buffer,0,sizeof(buffer));
   fgets(buffer, sizeof(buffer), stdin);
   n=strlen(buffer);
   if(n>0 && buffer[n-1] == '\n') buffer[n-1]='\0';
@@ -70,7 +73,7 @@ for(;;){
 	dir = opendir(".");
 	if(dir != NULL){
 		while((ent = readdir(dir)) != NULL){
-			printf("%s\n",ent->d_name);
+			if(strcmp(ent->d_name,".") && strcmp(ent->d_name,".."))	printf("%s\n",ent->d_name);
 		}
 	}
 	closedir(dir);
@@ -88,22 +91,64 @@ for(;;){
   	}
   	else if(strcmp(toke,"get")==0){
 		toke = strtok(NULL," ");
-		strcpy(str,toke);
-		n = recv(sockfd, buffer ,sizeof(buffer), 0);
-		printf("Retrieve file '%s' from server: %s\n", str,buffer);
-		if(strcmp(buffer,"succesful")==0){
-			f = fopen(str,"wb");
-			n = recv(sockfd, buffer,sizeof(buffer), 0);
-			if(f == NULL) printf("Could not write received file.");
-			fwrite(buffer,strlen(buffer),1,f);
+		strcpy(filename,toke);
+		n = recv(sockfd, buffer ,sizeof(buffer),0);
+		strcpy(getStatus,buffer);
+		if(strcmp(getStatus,"succesful")==0){
+			FILE *f = fopen(filename,"a");
+			uint32_t sizeIn;
+			n = recv(sockfd,&sizeIn,sizeof(uint32_t),0);
+			uint32_t filesize = ntohl(sizeIn);
+			int bytes_read,bytes_toRead, bytes_written;
+			bytes_toRead = filesize;
+			while(bytes_toRead > 0){
+				bytes_read = read(sockfd,buffer,sizeof(buffer));
+				if(bytes_toRead< sizeof(buffer)){
+					bytes_written = fwrite(buffer, bytes_toRead,1,f);
+				}
+				else{
+					bytes_written = fwrite(buffer,sizeof(buffer),1,f);
+				}
+				if(bytes_written <0) syserr("Error writing");
+				bytes_toRead -= bytes_read;
+			}
 			fclose(f);
 		}	
 		else{
+			printf("unsuccesful");
 			memset(buffer, '\0',sizeof(buffer));
 			n = recv(sockfd,buffer,sizeof(buffer),0);
 			printf("%s\n",buffer);
 		}
+		printf("Retrieve file '%s' from server: %s\n",filename,getStatus);
   	}
+	else if(strcmp(toke,"put")==0){
+		toke = strtok(NULL, " " );
+		int f = open(toke,0);
+		int filesize;
+  		struct stat st;
+		stat(toke, &st);
+		filesize = st.st_size;
+		printf("Sending %d bits to server \n",filesize);
+		if(f == -1){
+			printf("Invalid file/format. Please use put <filename>\n");
+		}
+		else{
+			uint32_t un = htonl((uint32_t)filesize);
+			n = send(sockfd,&un,sizeof(uint32_t),0);
+			int bytes_sent,bytes_read,bytes_remaining;
+			bytes_remaining = filesize;
+			while(bytes_remaining > 0 ){
+				bytes_read = read(f,buffer,sizeof(buffer));
+				bytes_sent = send(sockfd, buffer,sizeof(buffer),0);
+				if(bytes_sent<0) syserr("error sending file");
+				bytes_remaining -= bytes_sent; 
+				printf("Transferring %d bits to server... %d remaining\n",bytes_sent,bytes_remaining);
+			}
+			printf("Finished sending file\n");
+		}
+		close(f);
+	}
 	else if(strcmp(toke,"ls-remote")==0){
 		printf("Files at the server(%s):\n",argv[1]);
 		n = recv(sockfd, buffer, sizeof(buffer), 0);

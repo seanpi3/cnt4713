@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <sys/types.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -6,6 +7,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <dirent.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <arpa/inet.h>
 
 void syserr(char *msg) { perror(msg); exit(-1); }
 
@@ -59,13 +63,19 @@ for(;;){
   else{	
   	char buffer[256];
 	char command[256];
+	char filename[256];
 	char *msg;
 	DIR *dir;
 	struct dirent *ent;
 	char *toke;  
+	int filesize;
+	struct stat st;
     for(;;){
   	n = recv(newsockfd, buffer, sizeof(buffer), 0); 
-  	if(n < 0) syserr("can't receive from client"); 
+  	if(n < 0){
+		printf("Client lost connection");
+		pthread_exit(); 
+	}
 	else buffer[n] = '\0';
 	printf("SERVER GOT MESSAGE: %s\n", buffer); 
     	toke = strtok(buffer," ");
@@ -77,32 +87,37 @@ for(;;){
 		printf("server stopping\n");
 		exit(0);
 	}
+	else if(strcmp(toke,"exit")==0){
+		close(newsockfd);
+		pthread_exit();
+	}
 	else if(strcmp(toke,"ls-remote")==0){
 		dir = opendir(".");
 		if(dir != NULL){
 			while((ent = readdir(dir)) != NULL){
-				msg = ent->d_name;
-				n = send(newsockfd,msg,strlen(msg),0);
-				printf("SENT:%s\n",msg);
-				msg = "\n";
-				n = send(newsockfd,msg,strlen(msg),0);	
-				printf("SENT:%s\n",msg);
+				if(strcmp(ent->d_name, ".") && strcmp(ent->d_name,"..") ){
+					msg = ent->d_name;
+					n = send(newsockfd,msg,strlen(msg),0);
+					msg = "\n";
+					n = send(newsockfd,msg,strlen(msg),0);	
+				}
 			}
 		}
 		else{
 			printf("null directory\n");
 		}
 		closedir(dir);
-		printf("ls-remote\n");
 	}
 	else if(strcmp(toke,"get")==0){
 		toke = strtok(NULL ,"\0");
-		FILE *f = fopen(toke,"rb" );
+		int f = open(toke,0);
+		stat (toke, &st);
+		filesize = st.st_size;
+		printf("Sending %d bits to client \n",filesize);
 		msg = "succesful";
-		if (f == NULL){
+		if (f == -1 ){
 			msg = "failed";
 			n = send(newsockfd,msg,sizeof(buffer),0);
-			printf("SENT:%s\n",msg);
 			msg = "Invalid file/format. Please use get <filename>\0";
 			n = send(newsockfd,msg,sizeof(buffer),0);
 			printf("SENT:%s\n",msg);
@@ -110,17 +125,46 @@ for(;;){
 		else{
 			n = send(newsockfd,msg,sizeof(buffer),0);
 			printf("SENT:%s\n",msg);
-			n = fread(buffer,sizeof(buffer),1,f);
-			if(n < 0) printf("Error reading file");
-			n = send(newsockfd, buffer, sizeof(buffer),0);
-			printf("SENT:%s\n",buffer);
-			fclose(f);
+			uint32_t un = htonl((uint32_t)filesize);
+			n = send(newsockfd,&un,sizeof(uint32_t),0);
+			int bytes_sent,bytes_read, bytes_remaining, bytes_to_send;
+			bytes_remaining = filesize;
+			while(bytes_remaining > 0){
+				bytes_read = read(f,buffer,sizeof(buffer));
+				bytes_sent = send(newsockfd, buffer,sizeof(buffer),0);
+				if(bytes_sent < 0) printf("Error sending file");
+				bytes_remaining -= bytes_sent;
+				printf("Transferring %d bits to client... %d remaining\n",bytes_sent,bytes_remaining);
+			}
+			printf("Finished sending file\n");
 		}
+			close(f);
+		
 	}
 	else if(strcmp(toke,"put")==0){
-		msg = "putting\0";
-		n = send(newsockfd,msg,sizeof(buffer),0);
-		printf("SENT:%s\n",msg);
+		toke = strtok(NULL," ");
+		strcpy(filename,toke);
+		FILE *f = fopen(filename,"a");
+		uint32_t sizeIn;
+		n = recv(newsockfd,&sizeIn, sizeof(uint32_t),0);
+		uint32_t filesize = ntohl(sizeIn);
+		int bytes_read,bytes_toRead,bytes_written;
+		bytes_toRead = filesize;
+		printf("Receiving %d bits from client\n",filesize);
+		while(bytes_toRead > 0){
+			bytes_read = read(newsockfd,buffer,sizeof(buffer));
+			if(bytes_toRead<sizeof(buffer)){
+				bytes_written = fwrite(buffer,bytes_toRead,1,f);
+			}
+			else{
+				bytes_written = fwrite(buffer,sizeof(buffer),1,f);
+			}
+			bytes_toRead -= bytes_read;
+			if(bytes_written<0) syserr("Error writing");
+			printf("Receiving %d bits from client... %d remaining\n",bytes_read, bytes_toRead);
+		}
+		fclose(f);
+		printf("Received file '%s' from client\n",filename);
 	}
 	else{
 		msg = "Invalid command. Please send one of the following valid commands: ls-remote, get <filename>, put <filename>, stop.\0";
