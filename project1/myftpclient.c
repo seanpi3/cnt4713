@@ -134,6 +134,7 @@ for(;;){
 			if(n<0) lostconn();
 			int bytes_sent,bytes_read,bytes_remaining;
 			bytes_remaining = filesize;
+			printf("Transferring %d bytes to server... \n",bytes_remaining);
 			while(bytes_remaining > 0 ){
 				memset(buffer,0,sizeof(buffer));
 				bytes_read = read(f,buffer,sizeof(buffer));
@@ -141,7 +142,6 @@ for(;;){
 				bytes_sent = send(sockfd, buffer,sizeof(buffer),0);
 				if(bytes_sent<0) syserr("error sending file");
 				bytes_remaining -= bytes_sent; 
-				printf("Transferring %d bits to server... %d remaining\n",bytes_sent,bytes_remaining);
 			}
 			printf("Finished sending file\n");
 		}

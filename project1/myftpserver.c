@@ -143,13 +143,14 @@ for(;;){
 			if(n<0) lostconn();
 			int bytes_sent,bytes_read, bytes_remaining, bytes_to_send;
 			bytes_remaining = filesize;
+			printf("Transfering %d bytes to client...\n", bytes_remaining);
 			while(bytes_remaining > 0){
 				bytes_read = read(f,buffer,sizeof(buffer));
 				if(bytes_read < 0) lostconn();
 				bytes_sent = send(newsockfd, buffer,sizeof(buffer),0);
 				if(bytes_sent < 0) lostconn();
 				bytes_remaining -= bytes_sent;
-				printf("Transferring %d bits to client... %d remaining\n",bytes_sent,bytes_remaining);
+				if(bytes_sent < sizeof(buffer)) printf("Only %d bytes sent\n",bytes_sent);
 			}
 			printf("Finished sending file\n");
 		}
@@ -180,7 +181,6 @@ for(;;){
 			}
 			bytes_toRead -= bytes_read;
 			if(bytes_written<0) syserr("Error writing");
-			printf("Receiving %d bits from client... %d remaining\n",bytes_read, bytes_toRead);
 		}
 		fclose(f);
 		printf("Received file '%s' from client\n",filename);
