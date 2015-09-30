@@ -145,12 +145,19 @@ for(;;){
 			bytes_remaining = filesize;
 			printf("Transfering %d bytes to client...\n", bytes_remaining);
 			while(bytes_remaining > 0){
-				bytes_read = read(f,buffer,sizeof(buffer));
-				if(bytes_read < 0) lostconn();
-				bytes_sent = send(newsockfd, buffer,sizeof(buffer),0);
-				if(bytes_sent < 0) lostconn();
+				if(bytes_remaining<sizeof(buffer)){
+					bytes_read = read(f,buffer,bytes_remaining);
+					if(bytes_read < 0) lostconn();
+					bytes_sent = send(newsockfd, buffer,bytes_remaining,0);
+					if(bytes_sent < 0) lostconn();
+				}
+				else{
+					bytes_read = read(f,buffer,sizeof(buffer));
+					if(bytes_read < 0) lostconn();
+					bytes_sent = send(newsockfd, buffer,sizeof(buffer),0);
+					if(bytes_sent < 0) lostconn();
+				}
 				bytes_remaining -= bytes_sent;
-				if(bytes_sent < sizeof(buffer)) printf("Only %d bytes sent\n",bytes_sent);
 			}
 			printf("Finished sending file\n");
 		}
@@ -160,7 +167,7 @@ for(;;){
 	else if(strcmp(toke,"put")==0){
 		toke = strtok(NULL," ");
 		strcpy(filename,toke);
-		FILE *f = fopen(filename,"a");
+		FILE *f = fopen(filename,"wb");
 		uint32_t sizeIn;
 		n = recv(newsockfd,&sizeIn, sizeof(uint32_t),0);
 		if(n<0) lostconn();

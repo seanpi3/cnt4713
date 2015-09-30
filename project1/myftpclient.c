@@ -87,13 +87,14 @@ for(;;){
 		if(n<0) lostconn();
 		strcpy(getStatus,buffer);
 		if(strcmp(getStatus,"succesful")==0){
-			FILE *f = fopen(filename,"a");
+			FILE *f = fopen(filename,"wb");
 			uint32_t sizeIn;
 			n = recv(sockfd,&sizeIn,sizeof(uint32_t),0);
 			if(n<0) lostconn();
 			uint32_t filesize = ntohl(sizeIn);
 			int bytes_read,bytes_toRead, bytes_written;
 			bytes_toRead = filesize;
+			printf("Receiving %d bytes from server...\n",bytes_toRead);
 			while(bytes_toRead > 0){
 				memset(buffer,0,sizeof(buffer));
 				bytes_read = read(sockfd,buffer,sizeof(buffer));
@@ -124,7 +125,6 @@ for(;;){
   		struct stat st;
 		stat(toke, &st);
 		filesize = st.st_size;
-		printf("Sending %d bits to server \n",filesize);
 		if(f == -1){
 			printf("Invalid file/format. Please use put <filename>\n");
 		}
@@ -137,13 +137,27 @@ for(;;){
 			printf("Transferring %d bytes to server... \n",bytes_remaining);
 			while(bytes_remaining > 0 ){
 				memset(buffer,0,sizeof(buffer));
-				bytes_read = read(f,buffer,sizeof(buffer));
-				if(bytes_read<0) syserr("error reading file");
-				bytes_sent = send(sockfd, buffer,sizeof(buffer),0);
-				if(bytes_sent<0) syserr("error sending file");
+				if(bytes_remaining < sizeof(buffer)){
+					bytes_read = read(f,buffer,bytes_remaining);
+					if(bytes_read<0) syserr("error reading file");
+					bytes_sent = send(sockfd, buffer,bytes_remaining,0);
+					if(bytes_sent<0) syserr("error sending file");	
+				}
+				else{
+					bytes_read = read(f,buffer,sizeof(buffer));
+					if(bytes_read<0) syserr("error reading file");
+					bytes_sent = send(sockfd, buffer,sizeof(buffer),0);
+					if(bytes_sent<0) syserr("error sending file");
+					if(bytes_sent < sizeof(buffer)){
+						bytes_read = read(f,buffer, sizeof(buffer)-bytes_read);
+						if(bytes_read<0) syserr("error reading file");
+						bytes_sent = send(sockfd,buffer,sizeof(buffer)-bytes_read,0);
+						if(bytes_sent<0) syserr("error sending file");
+					}				
+				}
 				bytes_remaining -= bytes_sent; 
 			}
-			printf("Finished sending file\n");
+			printf("Upload '%s' to remote server: successful\n",toke);
 		}
 		close(f);
 	}
@@ -154,7 +168,6 @@ for(;;){
 		n = recv(sockfd, &numIn,sizeof(uint32_t),0);
 		if(n<0) lostconn();
 		uint32_t numFiles = ntohl(numIn);
-		printf("%d files at server\n",numFiles);
 		while(numFiles > 0){
 			n = recv(sockfd, buffer, sizeof(buffer), 0);
 			if(n<0) lostconn();
