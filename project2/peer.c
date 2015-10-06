@@ -6,51 +6,73 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 
 void syserr(char* msg) { perror(msg); exit(-1); }
+void* serverLogic(void *arg){
+  printf("server logic here\n");
+}
 
 int main(int argc, char* argv[])
 {
-  int sockfd, portno, n;
-  struct hostent* server;
-  struct sockaddr_in serv_addr;
+  int trackersockfd,serversockfd,peersockfd,trackerport,peerport,serverport, n;
+  struct hostent* tracker, peer;
+  struct sockaddr_in tracker_addr, peer_addr, serv_addr, clt_addr;
+  socklen_t addrlen;
+  pthread_t servt;
   char buffer[256];
 
-  if(argc != 3) {
-    fprintf(stderr, "Usage: %s <hostname> <port>\n", argv[0]);
+  if(argc != 4) {
+    fprintf(stderr, "Usage: %s <tracker-hostname> <tracker-port> <local-port>\n", argv[0]);
     return 1;
   }
-  server = gethostbyname(argv[1]);
-  if(!server) {
+  tracker = gethostbyname(argv[1]);
+  if(!tracker) {
     fprintf(stderr, "ERROR: no such host: %s\n", argv[1]);
     return 2;
   }
-  portno = atoi(argv[2]);
-  
+  trackerport = atoi(argv[2]);
+  serverport = atoi(argv[3]);
   /*{
   struct in_addr **addr_list; int i;
-  printf("Official name is: %s\n", server->h_name);
+  printf("Official name is: %s\n", tracker->h_name);
   printf("    IP addresses: ");
-  addr_list = (struct in_addr **)server->h_addr_list;
+  addr_list = (struct in_addr **)tracker->h_addr_list;
   for(i = 0; addr_list[i] != NULL; i++) {
     printf("%s ", inet_ntoa(*addr_list[i]));
   }
   printf("\n");
   }*/
+  
+  //Set up tracker and server sockets
+  trackersockfd = socket(AF_INET,SOCK_STREAM, IPPROTO_TCP);
+  if(trackersockfd < 0) syserr("can't open socket");
+  serversockfd = socket(AF_INET,SOCK_STREAM, IPPROTO_TCP);
+  if(serversockfd < 0) syserr("can't open socket");
+  
+  //Set up tracker address
+  memset(&tracker_addr, 0, sizeof(tracker_addr));
+  tracker_addr.sin_family = AF_INET;
+  tracker_addr.sin_addr = *((struct in_addr*)tracker->h_addr);
+  tracker_addr.sin_port = htons(trackerport);
 
-  sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  if(sockfd < 0) syserr("can't open socket");
-  printf("create socket...\n");
-
+  //Set up server address
   memset(&serv_addr, 0, sizeof(serv_addr));
   serv_addr.sin_family = AF_INET;
-  serv_addr.sin_addr = *((struct in_addr*)server->h_addr);
-  serv_addr.sin_port = htons(portno);
+  serv_addr.sin_addr.s_addr = INADDR_ANY;
+  serv_addr.sin_port = htons(serverport);
+  
+  //Create thread for the server
+  n = pthread_create(&servt,NULL, &serverLogic, NULL);
+  if(n<0) syserr("can't create thread");
+  else printf("Thread created successfully\n");
+  
 
-  if(connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0)
-    syserr("can't connect to server");
-  printf("connect...\n");
-
+  //Connect to tracker  
+  if(connect(trackersockfd, (struct sockaddr*)&tracker_addr, sizeof(tracker_addr)) < 0)
+    syserr("can't connect to tracker");
+  printf("Connected to tracker.\n");
+  /*
   printf("PLEASE ENTER MESSAGE: ");
   fgets(buffer, 255, stdin);
   n = strlen(buffer); if(n>0 && buffer[n-1] == '\n') buffer[n-1] = '\0';
@@ -63,7 +85,8 @@ int main(int argc, char* argv[])
   if(n < 0) syserr("can't receive from server");
   else buffer[n] = '\0';
   printf("CLIENT RECEIVED MESSAGE: %s\n", buffer);
-
-  close(sockfd);
+  */
+  close(trackersockfd);
+  close(serversockfd);
   return 0;
 }
