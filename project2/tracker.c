@@ -7,23 +7,40 @@
 #include <netinet/in.h>
 
 int sockfd;
+typedef struct fileList{
+  char *IP;
+  char *port;
+  char *filename;
+  struct fileList *nextFile;
+};
+struct fileList *head;
+struct fileList *tail;
 void syserr(char *msg) { perror(msg); exit(-1); }
 void *trackerLogic(void *arg){
   int clientsockfd, n;
+  struct sockaddr_in clt_addr;
   socklen_t addrlen;
   char buffer[256];
+  char *clientIP;
+  memset(buffer,0,256);
   clientsockfd = sockfd;
   printf("client connected\n");
+  recv(clientsockfd, buffer, sizeof(buffer),0);
+  addrlen = sizeof(clt_addr);
+  n = getpeername(clientsockfd, (struct sockaddr *)&clt_addr, &addrlen);  
+  clientIP = malloc(sizeof(clt_addr.sin_addr));
+  strcpy(clientIP, inet_ntoa(clt_addr.sin_addr));
+  printf("%s",clientIP);
 }
-
 int main(int argc, char *argv[])
 {
   int clientsockfd, portno, n;
-  struct sockaddr_in serv_addr, clt_addr;
+  struct sockaddr_in serv_addr,clt_addr;
   socklen_t addrlen;
   pthread_t clt_thread;
   char buffer[256];
-
+  head = malloc(sizeof(struct fileList));
+  head = tail;
   //If port number argument is not given default to 5000
   if(argc < 2) portno = 5000; 
   else if(argc == 2) portno = atoi(argv[1]);
