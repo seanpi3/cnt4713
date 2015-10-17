@@ -18,29 +18,30 @@ typedef struct client{
 	struct sockaddr_in clt_addr;
 	socklen_t addrlen;
 };
-struct client *connectingClient;
 struct fileList *head;
 struct fileList *tail;
 void syserr(char *msg) { perror(msg); exit(-1); }
 void *trackerLogic(void *arg){
   int n;
   struct client *clt;
-  clt = connectingClient ;
+  clt = malloc(sizeof(clt));
+  clt = (struct client *)arg;
   char buffer[256];
   char *clientIP;
   memset(buffer,0,256);
   printf("client connected\n");
- // recv(clt.sockfd, buffer, sizeof(buffer),0);
-  //n = getpeername(clientsockfd, (struct sockaddr *)&clt_addr, &addrlen);  
-  clientIP = malloc(sizeof(clt.clt_addr.sin_addr));
-  strcpy(clientIP, inet_ntoa(clt.clt_addr.sin_addr));
-  printf("%s",clientIP);
+  clt->addrlen = sizeof(clt->clt_addr);
+  n = getpeername(clt->sockfd,(struct sockaddr *)&(clt->clt_addr),&(clt->addrlen));
+  //clientIP = malloc(20*sizeof(char));
+  // recv(clt.sockfd, buffer, sizeof(buffer),0);
+  //strcpy(clientIP, inet_ntoa(clt->clt_addr.sin_addr));
+  printf("%d",clt->sockfd);
 }
 int main(int argc, char *argv[])
 {
   int clientsockfd, portno, n;
-  struct sockaddr_in serv_addr,clt_addr;
-  socklen_t addrlen;
+  struct client *clt;
+  struct sockaddr_in serv_addr;
   pthread_t clt_thread;
   char buffer[256];
   head = malloc(sizeof(struct fileList));
@@ -53,7 +54,6 @@ int main(int argc, char *argv[])
   //Create server socket
   sockfd = socket(AF_INET, SOCK_STREAM, 0); 
   if(sockfd < 0) syserr("can't open socket"); 
-  //printf("create socket...\n");
 
   //Set up server address
   memset(&serv_addr, 0, sizeof(serv_addr));
@@ -68,21 +68,20 @@ int main(int argc, char *argv[])
 
   listen(sockfd, 5); 
   printf("Tracker set up and waiting for clients...\n");
-//Accept and set up incoming clients
+  //Accept and set up incoming clients
+  clt = malloc(sizeof(clt));
 for(;;) {
+  clt->sockfd = accept(sockfd, (struct sockaddr*)&(clt->clt_addr), &(clt->addrlen));
   //printf("wait on port %d...\n", portno);
-  struct client cl;
-  cl.sockfd = accept(sockfd, (struct sockaddr*)&(cl.clt_addr), &(cl.addrlen));
-  cl.addrlen = sizeof(cl.clt_addr);
-  cl.addrlen = sizeof(cl.clt_addr); 
-  if(cl.sockfd < 0){
-    close(clientsockfd);
+  clt->addrlen = sizeof(clt->clt_addr);
+  if(clt->sockfd < 0){
+    close(clt->sockfd);
     printf("Cannot accept client\n");
   } 
   else{
     printf("New incoming connection...");
     //Create thread for incoming client
-    n = pthread_create(&clt_thread,NULL,&trackerLogic,cl);
+    n = pthread_create(&clt_thread,NULL,&trackerLogic,(void *)clt);
     if(n<0) syserr("can't create thread");
   }
 }
