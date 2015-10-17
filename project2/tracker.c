@@ -13,23 +13,27 @@ typedef struct fileList{
   char *filename;
   struct fileList *nextFile;
 };
+typedef struct client{
+	int sockfd;
+	struct sockaddr_in clt_addr;
+	socklen_t addrlen;
+};
+struct client *connectingClient;
 struct fileList *head;
 struct fileList *tail;
 void syserr(char *msg) { perror(msg); exit(-1); }
 void *trackerLogic(void *arg){
-  int clientsockfd, n;
-  struct sockaddr_in clt_addr;
-  socklen_t addrlen;
+  int n;
+  struct client *clt;
+  clt = connectingClient ;
   char buffer[256];
   char *clientIP;
   memset(buffer,0,256);
-  clientsockfd = sockfd;
   printf("client connected\n");
-  recv(clientsockfd, buffer, sizeof(buffer),0);
-  addrlen = sizeof(clt_addr);
-  n = getpeername(clientsockfd, (struct sockaddr *)&clt_addr, &addrlen);  
-  clientIP = malloc(sizeof(clt_addr.sin_addr));
-  strcpy(clientIP, inet_ntoa(clt_addr.sin_addr));
+ // recv(clt.sockfd, buffer, sizeof(buffer),0);
+  //n = getpeername(clientsockfd, (struct sockaddr *)&clt_addr, &addrlen);  
+  clientIP = malloc(sizeof(clt.clt_addr.sin_addr));
+  strcpy(clientIP, inet_ntoa(clt.clt_addr.sin_addr));
   printf("%s",clientIP);
 }
 int main(int argc, char *argv[])
@@ -67,17 +71,18 @@ int main(int argc, char *argv[])
 //Accept and set up incoming clients
 for(;;) {
   //printf("wait on port %d...\n", portno);
-  clientsockfd = accept(sockfd, (struct sockaddr*)&clt_addr, &addrlen);
-  addrlen = sizeof(clt_addr); 
-  if(clientsockfd < 0){
+  struct client cl;
+  cl.sockfd = accept(sockfd, (struct sockaddr*)&(cl.clt_addr), &(cl.addrlen));
+  cl.addrlen = sizeof(cl.clt_addr);
+  cl.addrlen = sizeof(cl.clt_addr); 
+  if(cl.sockfd < 0){
     close(clientsockfd);
     printf("Cannot accept client\n");
   } 
   else{
     printf("New incoming connection...");
-    
     //Create thread for incoming client
-    n = pthread_create(&clt_thread,NULL,&trackerLogic, NULL);
+    n = pthread_create(&clt_thread,NULL,&trackerLogic,cl);
     if(n<0) syserr("can't create thread");
   }
 }
