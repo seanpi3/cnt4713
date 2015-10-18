@@ -20,8 +20,17 @@ typedef struct fileList{
 	char *IP, *port, *filename;
 	struct fileList *nextFile;
 };
+//logic for each connected client, run on a new thread
 void *trackerLogic(void *arg){
+  char *clientAddress;
+  char buffer[256];
   printf("Client connected...\n");
+  struct client *clt = (struct client *)arg;
+  clientAddress = malloc(sizeof(char) * 20);
+  strcpy(clientAddress, inet_ntoa(clt->clt_addr.sin_addr));
+  printf("%s\n",inet_ntoa(clt->clt_addr.sin_addr));
+  printf("%s connected",clientAddress);
+  //send(clt->sockfd,buffer,sizeof(buffer),0);
 }
 
 void syserr(char *msg) { perror(msg); exit(-1); }
@@ -62,9 +71,9 @@ int main(int argc, char *argv[])
   listen(sockfd, 5); 
   printf("Tracker set up and waiting for clients...\n");
   struct client *clt;
+  clt = malloc(sizeof(struct client));
 for(;;){
   clt->sockfd = accept(sockfd, (struct sockaddr*)&(clt->clt_addr), &(clt->addrlen));
-  printf("%s\n",inet_ntoa(clt->clt_addr.sin_addr));
   clt->addrlen = sizeof(clt->clt_addr); 
   if(clt->sockfd < 0){
 	close(clt->sockfd);	
@@ -74,7 +83,7 @@ for(;;){
 	 printf("New incoming connection...");
 	 n = pthread_create(&clt_thread,NULL,&trackerLogic,clt);
   }
+}
   close(sockfd); 
   return 0;
-}
 }
