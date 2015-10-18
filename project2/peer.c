@@ -14,6 +14,7 @@ void syserr(char* msg) { perror(msg); exit(-1); }
 
 //Logic for the server thread
 void *serverLogic(void *arg){
+	/*
   int clientsockfd,n;
   struct sockaddr_in clt_addr;
   socklen_t addrlen;
@@ -55,7 +56,7 @@ void *serverLogic(void *arg){
   }
   
   
-  
+  */
 }
 
 int main(int argc, char* argv[])
@@ -115,9 +116,9 @@ int main(int argc, char* argv[])
   if(connect(trackersockfd, (struct sockaddr*)&tracker_addr, sizeof(tracker_addr)) < 0)
     syserr("can't connect to tracker");
   printf("Connected to tracker.\n");
-
   for(;;){
-
+  	recv(trackersockfd, buffer,sizeof(buffer),0);
+  	printf("CLIENT RECEIVED MESSAE: %s\n", buffer);
   }
   /*
   printf("PLEASE ENTER MESSAGE: ");
