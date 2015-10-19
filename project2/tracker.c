@@ -123,7 +123,7 @@ void *trackerLogic(void *arg){
   }
 	//printf("Files added to list.\n");
   //printf("Received all files\n",buffer); 
-	//printfiles();
+	printfiles();
 	//printf("everything set up waiting for commands and other clients...\n");
 	for(;;){
 		memset(buffer,0,sizeof(buffer));
