@@ -256,20 +256,25 @@ int main(int argc, char* argv[])
 			struct fileList *current = head;
 			int count = 0;
 			while(strcmp(buffer,"EOL")){
+				memset(buffer,0,sizeof(buffer));
 				n = recv(trackersockfd,buffer,sizeof(buffer),0);
 				if(n<=0) syserr("lost connection to tracker");
 				printf("[%d] %s ",count, buffer);
 				strcpy(current->filename,buffer);
+				memset(buffer,0,sizeof(buffer));
 				n = recv(trackersockfd,buffer,sizeof(buffer),0);
 				if(n<=0) syserr("lost connection to tracker");
 				strcpy(current->ip,buffer);
 				printf("%s:",current->ip);
 				uint32_t portIn;
+				memset(buffer,0,sizeof(buffer));
 				n = recv(trackersockfd,&portIn,sizeof(uint32_t),0);
 				if(n<=0) syserr("lost connection to tracker");
 				uint32_t peerPort = ntohl(portIn);
 				printf("%d\n",peerPort);
+				memset(buffer,0,sizeof(buffer));
 				n = recv(trackersockfd,buffer,sizeof(buffer),0);
+				buffer[n] = '\0';
 				if(n<=0) syserr("lost connection to tracker");
 				current->port = peerPort;
 				if(strcmp(buffer,"EOL") && current->nextFile==NULL){
