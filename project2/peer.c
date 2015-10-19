@@ -52,7 +52,7 @@ void *serverLogic(void *arg){
 	printf("Cannot accept client\n");
     }
     else{
-	printf("peer connected...\n");
+	//printf("peer connected...\n");
 	int pid = fork();
 	if(pid<0) syserr("error");
 	else if (pid ==0) close(clientsockfd);
@@ -66,7 +66,7 @@ void *serverLogic(void *arg){
 	    memset(buffer,0,sizeof(buffer));
 	    n = recv(clientsockfd,buffer,sizeof(buffer),0);
 	    if(n<0) {
-			printf("Peer lost connection\n");
+			//printf("Peer lost connection\n");
 			close(clientsockfd);
 			pthread_exit(NULL);
 	    }
@@ -74,7 +74,7 @@ void *serverLogic(void *arg){
 		int f = open(filename,0);
 		stat(filename,&st);
 		filesize = st.st_size;
-		printf("Sending %d bytes to peer\n",filesize);
+		//printf("Sending %d bytes to peer\n",filesize);
 		if(f==-1){
 			printf("error\n");
 		}
@@ -99,7 +99,7 @@ void *serverLogic(void *arg){
 				}
 				bytes_remaining -= bytes_sent;
 			}
-			printf("Finished sending file\n");
+			//printf("Finished sending file\n");
 
 		}
 		close(f);
@@ -301,7 +301,6 @@ int main(int argc, char* argv[])
 			if(connect(peersockfd,(struct sockaddr*)&peer_addr,sizeof(peer_addr)) < 0){
 				printf("can't connect to client.\n");
 				}
-			printf("Connected to client: %s\n",selected->ip);
 			
 			n = send(peersockfd,selected->filename,sizeof(buffer),0);
 			if(n<=0) printf("error\n");
@@ -331,6 +330,7 @@ int main(int argc, char* argv[])
 			}
 			fclose(f);
 			close(peersockfd);
+			printf("%s downloaded successully.\n",selected->filename);
 
 	
 		}

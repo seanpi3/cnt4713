@@ -65,6 +65,7 @@ void *trackerLogic(void *arg){
   int n;
   uint32_t countIn, fileCount;
   struct client *clt = (struct client *)arg;
+  n = getpeername(clt->sockfd,(struct sockaddr_in *)&(clt->clt_addr),&(clt->addrlen));
   addr = inet_ntoa(clt->clt_addr.sin_addr);
   printf("%s connected\n",addr);
   msg = malloc(sizeof(buffer));
