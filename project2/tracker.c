@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -12,25 +13,134 @@
 #include <arpa/inet.h>
 
 typedef struct client {
-	int sockfd, addr;
+	int sockfd;
 	struct sockaddr_in clt_addr;
 	socklen_t addrlen;
 };
 typedef struct fileList{
-	char *IP, *port, *filename;
+	char *IP, *filename;
+	int port;
 	struct fileList *nextFile;
 };
+struct fileList *head;
+struct fileList *tail;
+void lostconn(char *ip){
+	printf("%s lost connection\n",ip);
+	pthread_exit();
+}
+void printlist(){
+	struct fileList *current = head;
+	while(current != NULL){
+		printf("%s at client %s\n",current->filename,current->IP);
+		current = current->nextFile;
+	}
+}
 //logic for each connected client, run on a new thread
 void *trackerLogic(void *arg){
-  char *clientAddress;
   char buffer[256];
+  char *msg;
+  char *addr;
+  int n;
+  uint32_t countIn, fileCount;
   printf("Client connected...\n");
   struct client *clt = (struct client *)arg;
-  clientAddress = malloc(sizeof(char) * 20);
-  strcpy(clientAddress, inet_ntoa(clt->clt_addr.sin_addr));
-  printf("%s\n",inet_ntoa(clt->clt_addr.sin_addr));
-  printf("%s connected",clientAddress);
-  //send(clt->sockfd,buffer,sizeof(buffer),0);
+  addr = inet_ntoa(clt->clt_addr.sin_addr);
+  printf("%s connected\n",addr);
+  msg = malloc(sizeof(buffer));
+
+
+	//Request port from client
+	memset(msg,0,sizeof(buffer));
+  msg = "reqport\0";
+  n = send(clt->sockfd,msg,sizeof(buffer),0);
+  if(n<0) lostconn(addr);
+	//printf("Sent %d bytes to client\n", n);
+	uint32_t portIn;
+	n = recv(clt->sockfd,&portIn,sizeof(uint32_t),0);
+  if(n<0||n==0) lostconn(addr);
+	//printf("Received %d bytes from client\n",n);
+ 	uint32_t port;
+  port = ntohl(portIn);
+  printf("Port: %d\n",port);
+
+	//Request files from client
+  //memset(msg,0,sizeof(buffer));
+  msg = "reqfiles\0";
+  n = send(clt->sockfd,msg,sizeof(buffer),0);
+  if(n<0) lostconn(addr);
+  n = recv(clt->sockfd,&countIn,sizeof(uint32_t),0);
+  if(n<0||n==0)lostconn(addr);
+  fileCount = ntohl(countIn);
+	printf("Expecting %d files\n",fileCount);
+  while(fileCount > 0){
+    memset(buffer,0,sizeof(buffer));
+    n = recv(clt->sockfd,buffer,sizeof(buffer),0);
+		if(n<0||n==0) lostconn(addr);
+		//printf("Received %d bytes from client...",n);
+		if(head==NULL){
+			head = malloc(sizeof(struct fileList));
+			head->filename = buffer;
+			head->IP = addr;
+			head->port = port;
+			head->nextFile = NULL;
+			tail = head;
+			printf("Added %s to list",head->filename);
+		}
+		else{
+			tail->nextFile = malloc(sizeof(struct fileList));
+			tail = tail->nextFile;
+			tail->filename = buffer;
+			tail->IP = addr;
+			tail->port = port;
+			tail->nextFile = NULL;
+			printf("Added %s to list",tail->filename);
+		}
+		fileCount --;
+  }
+	printf("Files added to list.\n");
+  //printf("Received all files\n",buffer); 
+	//printfiles();
+	//printf("everything set up waiting for commands and other clients...\n");
+	printlist();
+	for(;;){
+		memset(buffer,0,sizeof(buffer));
+		n = recv(clt->sockfd,buffer,sizeof(buffer),0);
+		if(n<=0) lostconn(addr);
+		//command conditionals
+		if(strcmp(buffer,"reqlist")==0){
+			printf("Sending list to %s\n",addr);
+			struct fileList *current = head;
+			while(current != NULL){
+				n = send(clt->sockfd,current->filename,sizeof(buffer),0);
+				if(n<0) lostconn(addr);
+				printf("sent: %s\n",current->filename);
+				//printf("sent %d bytes to client\n",n);
+				n = send(clt->sockfd, current->IP,sizeof(buffer),0);
+				if(n<0) lostconn(addr);
+				printf("sent: %s\n", current->IP);
+				//printf("sent %d bytes to client\n",n);
+				uint32_t portOut = htonl((uint32_t)current->port);
+				n = send(clt->sockfd, &portOut, sizeof(uint32_t),0);
+				if(n<0) lostconn(addr);
+				printf("send: %d\n",current->port);
+				//printf("sent %d bytes to client\n",n);
+				current = current->nextFile;
+				if(current==NULL) {
+					msg = "EOL\0";
+					n = send(clt->sockfd, msg, sizeof(buffer),0);
+					if(n<0) lostconn(addr);
+					//printf("sent EOL\n");
+				}
+				else{
+					msg = "next\0";
+					n = send(clt->sockfd,msg,sizeof(buffer),0);
+					if(n<0) lostconn(addr);
+					//printf("sent %d bytes to client\n",n);
+				}
+			}
+		}
+		
+	}
 }
 
 void syserr(char *msg) { perror(msg); exit(-1); }
@@ -47,6 +157,8 @@ int main(int argc, char *argv[])
     return 1;
   } 
   else portno = atoi(argv[1]); //converts portno string to int
+
+	head = NULL;
 
   //Create socket
   sockfd = socket(AF_INET, SOCK_STREAM, 0); //returns -1 if failed to open socket
@@ -66,6 +178,7 @@ int main(int argc, char *argv[])
 	close(sockfd);
 	syserr("can't bind");
   }
+
 
   //Listen for incoming clients
   listen(sockfd, 5); 
