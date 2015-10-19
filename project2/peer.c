@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 #include <dirent.h>
+#include <sys/stat.h>
 
 int trackersockfd, serversockfd, serverport;
 struct sockaddr_in serv_addr;
@@ -60,21 +61,54 @@ void *serverLogic(void *arg){
 	  char *filename;
 	  char *toke;
 	  int filesize;
-	  for(;;){
+	  struct stat st;
+	  filename = malloc(sizeof(buffer));
 	    memset(buffer,0,sizeof(buffer));
 	    n = recv(clientsockfd,buffer,sizeof(buffer),0);
 	    if(n<0) {
-		printf("Peer lost connection\n");
-		close(clientsockfd);
-		pthread_exit(NULL);
+			printf("Peer lost connection\n");
+			close(clientsockfd);
+			pthread_exit(NULL);
 	    }
-	    else buffer[n] = '\0';
-	    printf("SERVER GOT MESSAGE: %s\n",buffer);
+		strcpy(filename, buffer);
+		int f = open(filename,0);
+		stat(filename,&st);
+		filesize = st.st_size;
+		printf("Sending %d bytes to peer\n",filesize);
+		if(f==-1){
+			printf("error\n");
+		}
+		else{
+			uint32_t un = htonl((uint32_t)filesize);
+			n = send(clientsockfd,&un,sizeof(uint32_t),0);
+			if(n<0) printf("error");
+			int bytes_sent,bytes_read, bytes_remaining,bytes_to_send;
+			bytes_remaining = filesize;
+			while(bytes_remaining >0 ){
+				if(bytes_remaining<sizeof(buffer)){
+					bytes_read = read(f,buffer,bytes_remaining);
+					if(bytes_read<0) printf("error\n");
+					bytes_sent = send(clientsockfd, buffer, bytes_remaining,0);
+					if(bytes_sent < 0 ) printf("error\n");
+				}
+				else{
+					bytes_read = read(f,buffer,sizeof(buffer));
+					if(bytes_read<0)printf("error\n");
+					bytes_sent = send(clientsockfd,buffer,sizeof(buffer),0);
+					if(bytes_sent<0)printf("error\n");
+				}
+				bytes_remaining -= bytes_sent;
+			}
+			printf("Finished sending file\n");
+
+		}
+		close(f);
+		pthread_exit(NULL);
 	  }
-	}
     }
   }
   
+
   
   
 }
@@ -269,6 +303,8 @@ int main(int argc, char* argv[])
 				}
 			printf("Connected to client: %s\n",selected->ip);
 			
+			n = send(peersockfd,selected->filename,sizeof(buffer),0);
+			if(n<=0) printf("error\n");
 			memset(buffer,0,sizeof(buffer));
 
 			FILE *f = fopen(selected->filename,"wb");
