@@ -251,31 +251,29 @@ int main(int argc, char* argv[])
 			toke = strtok(NULL," ");
 			int i = atoi(toke);
 			struct fileList *selected = fileAt(i);
-				printf("Downloading %s from peer %s\n",selected->filename,selected->ip);
+			printf("Downloading %s from peer %s:%d\n",selected->filename,selected->ip,selected->port);
 			
-			
-			int peerfd;
-
-
+			peersockfd = socket(AF_INET,SOCK_STREAM, IPPROTO_TCP);
+			if(peersockfd < 0 ) printf("ERROR: Can't open socket");
 			peer = gethostbyname(selected->ip);
+			if(!peer) printf("Cannot find clinet");
 
 			//Set up peer address
-			memset(&peer_addr,0,sizeof(serv_addr));
+			memset(&peer_addr,0,sizeof(peer_addr));
 			peer_addr.sin_family = AF_INET;
 			peer_addr.sin_addr = *((struct in_addr*)peer->h_addr);
 			peer_addr.sin_port = htons(selected->port);
 
-			if(connect(peerfd,(struct sockaddr*)&peer_addr,sizeof(serv_addr)) < 0){
+			if(connect(peersockfd,(struct sockaddr*)&peer_addr,sizeof(peer_addr)) < 0){
 				printf("can't connect to client.\n");
 				}
 			printf("Connected to client: %s\n",selected->ip);
 			
-			printf("downloading %s from peer at %s:%d\n", selected->filename, selected->ip,selected->port);
 			memset(buffer,0,sizeof(buffer));
 
 			FILE *f = fopen(selected->filename,"wb");
 			uint32_t sizeIn;
-			n = recv(peerfd,&sizeIn,sizeof(uint32_t),0);
+			n = recv(peersockfd,&sizeIn,sizeof(uint32_t),0);
 			if(n<=0) printf("error\n");
 			uint32_t filesize = ntohl(sizeIn);
 			int bytes_read,bytes_toRead,bytes_written;
@@ -283,7 +281,7 @@ int main(int argc, char* argv[])
 			printf("Receiving %d bytes from peer...\n", bytes_toRead);
 			while(bytes_toRead > 0){
 				memset(buffer,0,sizeof(buffer));
-				bytes_read = read(peerfd,buffer,sizeof(buffer));
+				bytes_read = read(peersockfd,buffer,sizeof(buffer));
 				if(bytes_read <= 0) printf("error\n");
 				if(bytes_toRead < 256){
 					bytes_written = fwrite(buffer,bytes_toRead,1,f);
@@ -293,9 +291,10 @@ int main(int argc, char* argv[])
 
 				}
 				if(bytes_written <0) printf("error\n");
+				bytes_toRead -= bytes_read;
 			}
 			fclose(f);
-			close(peerfd);
+			close(peersockfd);
 
 	
 		}

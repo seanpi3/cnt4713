@@ -102,8 +102,7 @@ void *trackerLogic(void *arg){
 			head = malloc(sizeof(struct fileList));
 			head->filename = malloc(sizeof(buffer));
 			strcpy(head->filename,buffer);
-			head->IP = malloc(sizeof(buffer));
-			strcpy(head->IP,buffer);
+			head->IP = addr;
 			head->port = port;
 			head->nextFile = NULL;
 			tail = head;
@@ -114,8 +113,7 @@ void *trackerLogic(void *arg){
 			tail = tail->nextFile;
 			tail->filename = malloc(sizeof(buffer));
 			strcpy(tail->filename, buffer);
-			tail->IP = malloc(sizeof(buffer));
-			strcpy(tail->IP,buffer);
+			tail->IP = addr;
 			tail->port = port;
 			tail->nextFile = NULL;
 			//printf("Added %s to list",tail->filename);
