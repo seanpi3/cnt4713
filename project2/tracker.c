@@ -16,6 +16,7 @@ typedef struct client {
 	int sockfd;
 	struct sockaddr_in clt_addr;
 	socklen_t addrlen;
+ 	 pthread_t clt_thread;
 };
 typedef struct fileList{
 	char *IP, *filename;
@@ -26,6 +27,27 @@ struct fileList *head;
 struct fileList *tail;
 void lostconn(char *ip){
 	printf("%s lost connection\n",ip);
+	struct fileList *current;
+	struct fileList *last;
+	current = head;
+	last = NULL;
+	while(current!=NULL){
+		if(strcmp(current->IP,ip)==0){
+			if(last==NULL){
+				head=current->nextFile;
+				free(current);
+				current=head;
+			}
+			else{
+				last->nextFile=current->nextFile;
+				free(current);
+				current = last->nextFile;
+			}
+		}
+		else{
+			current = current->nextFile;
+		}
+	}
 	pthread_exit();
 }
 void printlist(){
@@ -42,7 +64,6 @@ void *trackerLogic(void *arg){
   char *addr;
   int n;
   uint32_t countIn, fileCount;
-  printf("Client connected...\n");
   struct client *clt = (struct client *)arg;
   addr = inet_ntoa(clt->clt_addr.sin_addr);
   printf("%s connected\n",addr);
@@ -61,7 +82,7 @@ void *trackerLogic(void *arg){
 	//printf("Received %d bytes from client\n",n);
  	uint32_t port;
   port = ntohl(portIn);
-  printf("Port: %d\n",port);
+//  printf("Port: %d\n",port);
 
 	//Request files from client
   //memset(msg,0,sizeof(buffer));
@@ -71,7 +92,7 @@ void *trackerLogic(void *arg){
   n = recv(clt->sockfd,&countIn,sizeof(uint32_t),0);
   if(n<0||n==0)lostconn(addr);
   fileCount = ntohl(countIn);
-	printf("Expecting %d files\n",fileCount);
+	//printf("Expecting %d files\n",fileCount);
   while(fileCount > 0){
     memset(buffer,0,sizeof(buffer));
     n = recv(clt->sockfd,buffer,sizeof(buffer),0);
@@ -79,29 +100,32 @@ void *trackerLogic(void *arg){
 		//printf("Received %d bytes from client...",n);
 		if(head==NULL){
 			head = malloc(sizeof(struct fileList));
-			head->filename = buffer;
-			head->IP = addr;
+			head->filename = malloc(sizeof(buffer));
+			strcpy(head->filename,buffer);
+			head->IP = malloc(sizeof(buffer));
+			strcpy(head->IP,buffer);
 			head->port = port;
 			head->nextFile = NULL;
 			tail = head;
-			printf("Added %s to list",head->filename);
+			//printf("Added %s to list",head->filename);
 		}
 		else{
 			tail->nextFile = malloc(sizeof(struct fileList));
 			tail = tail->nextFile;
-			tail->filename = buffer;
-			tail->IP = addr;
+			tail->filename = malloc(sizeof(buffer));
+			strcpy(tail->filename, buffer);
+			tail->IP = malloc(sizeof(buffer));
+			strcpy(tail->IP,buffer);
 			tail->port = port;
 			tail->nextFile = NULL;
-			printf("Added %s to list",tail->filename);
+			//printf("Added %s to list",tail->filename);
 		}
 		fileCount --;
   }
-	printf("Files added to list.\n");
+	//printf("Files added to list.\n");
   //printf("Received all files\n",buffer); 
 	//printfiles();
 	//printf("everything set up waiting for commands and other clients...\n");
-	printlist();
 	for(;;){
 		memset(buffer,0,sizeof(buffer));
 		n = recv(clt->sockfd,buffer,sizeof(buffer),0);
@@ -113,16 +137,16 @@ void *trackerLogic(void *arg){
 			while(current != NULL){
 				n = send(clt->sockfd,current->filename,sizeof(buffer),0);
 				if(n<0) lostconn(addr);
-				printf("sent: %s\n",current->filename);
+				//printf("sent: %s\n",current->filename);
 				//printf("sent %d bytes to client\n",n);
 				n = send(clt->sockfd, current->IP,sizeof(buffer),0);
 				if(n<0) lostconn(addr);
-				printf("sent: %s\n", current->IP);
+				//printf("sent: %s\n", current->IP);
 				//printf("sent %d bytes to client\n",n);
 				uint32_t portOut = htonl((uint32_t)current->port);
 				n = send(clt->sockfd, &portOut, sizeof(uint32_t),0);
 				if(n<0) lostconn(addr);
-				printf("send: %d\n",current->port);
+				//printf("send: %d\n",current->port);
 				//printf("sent %d bytes to client\n",n);
 				current = current->nextFile;
 				if(current==NULL) {
@@ -149,7 +173,6 @@ int main(int argc, char *argv[])
   int sockfd, newsockfd, portno, n;
   struct sockaddr_in serv_addr, clt_addr;
   socklen_t addrlen;
-  pthread_t clt_thread;
   //Default to port 5000 if no port is given
   if(argc == 1) portno = 5000;
   else if(argc > 2) { 
@@ -184,8 +207,8 @@ int main(int argc, char *argv[])
   listen(sockfd, 5); 
   printf("Tracker set up and waiting for clients...\n");
   struct client *clt;
-  clt = malloc(sizeof(struct client));
 for(;;){
+  clt = malloc(sizeof(struct client));
   clt->sockfd = accept(sockfd, (struct sockaddr*)&(clt->clt_addr), &(clt->addrlen));
   clt->addrlen = sizeof(clt->clt_addr); 
   if(clt->sockfd < 0){
@@ -194,7 +217,7 @@ for(;;){
   }
  else{
 	 printf("New incoming connection...");
-	 n = pthread_create(&clt_thread,NULL,&trackerLogic,clt);
+	 n = pthread_create(&(clt->clt_thread),NULL,&trackerLogic,clt);
   }
 }
   close(sockfd); 
