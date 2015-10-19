@@ -28,7 +28,6 @@ struct fileList* fileAt(int i){
 	struct fileList *current = head;
 	for(x=0;x<i;x++){
 		current = current->nextFile;
-		if(current==NULL) return NULL;
 	}
 	return current;
 }
@@ -82,7 +81,7 @@ void *serverLogic(void *arg){
 int main(int argc, char* argv[])
 {
   int peersockfd,trackerport,peerport, n;
-  struct hostent* tracker, *peer;
+  struct hostent* tracker, peer;
   struct sockaddr_in tracker_addr, peer_addr;
   socklen_t addrlen;
   pthread_t servt;
@@ -179,7 +178,7 @@ int main(int argc, char* argv[])
 	else syserr("unable to properly communicate with tracker");
 
 	//test list
-	/*
+	
 	head = malloc(sizeof(struct fileList));
 	int g=0;
 	struct fileList *derp = head; 
@@ -195,16 +194,12 @@ int main(int argc, char* argv[])
 			derp->nextFile = NULL;
 	}
 	//test list
-	*/
+	
 
 	//Main program loop
 	char *toke;
 	char *command;
 	command = malloc(sizeof(buffer));
-	head =malloc(sizeof(struct fileList));
-	head->filename = malloc(sizeof(buffer));
-	head->ip = malloc(sizeof(buffer));
-	head->nextFile = NULL;
 	for(;;){
 		memset(buffer,0,sizeof(buffer));
 		printf("> ");
@@ -219,85 +214,28 @@ int main(int argc, char* argv[])
 			n = send(trackersockfd,msg,sizeof(buffer),0);
 			if(n<0) syserr("lost connection to tracker");
 			//printf("sent %d bytes to server\n",n);
-			struct fileList *current = head;
-			int count = 0;
 			while(strcmp(buffer,"EOL")){
 				n = recv(trackersockfd,buffer,sizeof(buffer),0);
 				if(n<=0) syserr("lost connection to tracker");
-				printf("[%d] %s ",count, buffer);
-				strcpy(current->filename,buffer);
+				printf("%s\n",buffer);
 				n = recv(trackersockfd,buffer,sizeof(buffer),0);
 				if(n<=0) syserr("lost connection to tracker");
-				strcpy(current->ip,buffer);
-				printf("%s:",current->ip);
+				printf("%s\n",buffer);
 				uint32_t portIn;
 				n = recv(trackersockfd,&portIn,sizeof(uint32_t),0);
 				if(n<=0) syserr("lost connection to tracker");
-				uint32_t peerPort = ntohl(portIn);
-				printf("%d\n",peerPort);
+				printf("%d\n",portIn);
 				n = recv(trackersockfd,buffer,sizeof(buffer),0);
 				if(n<=0) syserr("lost connection to tracker");
-				current->port = peerPort;
-				if(strcmp(buffer,"EOL") && current->nextFile==NULL){
-				   	current->nextFile = malloc(sizeof(struct fileList));					current = current->nextFile;
-					current->filename = malloc(sizeof(buffer));
-					current->ip = malloc(sizeof(buffer));
-				}
-				else current = current->nextFile;
-				count++;
 			}
+			printf("list\n");
 		}
 		else if(strcmp(toke,"download")==0){
 			toke = strtok(NULL," ");
 			int i = atoi(toke);
 			struct fileList *selected = fileAt(i);
-				printf("Downloading %s from peer %s\n",selected->filename,selected->ip);
-			
-			
-			int peerfd;
-
-
-			peer = gethostbyname(selected->ip);
-
-			//Set up peer address
-			memset(&peer_addr,0,sizeof(serv_addr));
-			peer_addr.sin_family = AF_INET;
-			peer_addr.sin_addr = *((struct in_addr*)peer->h_addr);
-			peer_addr.sin_port = htons(selected->port);
-
-			if(connect(peerfd,(struct sockaddr*)&peer_addr,sizeof(serv_addr)) < 0){
-				printf("can't connect to client.\n");
-				}
-			printf("Connected to client: %s\n",selected->ip);
-			
-			printf("downloading %s from peer at %s:%d\n", selected->filename, selected->ip,selected->port);
-			memset(buffer,0,sizeof(buffer));
-
-			FILE *f = fopen(selected->filename,"wb");
-			uint32_t sizeIn;
-			n = recv(peerfd,&sizeIn,sizeof(uint32_t),0);
-			if(n<=0) printf("error\n");
-			uint32_t filesize = ntohl(sizeIn);
-			int bytes_read,bytes_toRead,bytes_written;
-			bytes_toRead = filesize;
-			printf("Receiving %d bytes from peer...\n", bytes_toRead);
-			while(bytes_toRead > 0){
-				memset(buffer,0,sizeof(buffer));
-				bytes_read = read(peerfd,buffer,sizeof(buffer));
-				if(bytes_read <= 0) printf("error\n");
-				if(bytes_toRead < 256){
-					bytes_written = fwrite(buffer,bytes_toRead,1,f);
-				}
-				else{
-					bytes_written = fwrite(buffer,sizeof(buffer),1,f);
-
-				}
-				if(bytes_written <0) printf("error\n");
-			}
-			fclose(f);
-			close(peerfd);
-
-	
+			printf("%s\n",selected->filename);
+			printf("download\n");
 		}
 		else if(strcmp(toke,"exit")==0){
 			printf("exit\n");
@@ -309,7 +247,6 @@ int main(int argc, char* argv[])
 				current = current->nextFile;
 			}
 		}
-	
 	}
   
   /*
