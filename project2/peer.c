@@ -24,6 +24,17 @@ struct fileList *tail;
 
 void syserr(char* msg) { perror(msg); exit(-1); }
 
+void receiveAll(char *buffer, int bytes){
+		int n=0;
+		int bytes_toReceive = bytes;
+		void *offset = buffer;
+		while(bytes_toReceive > 0){
+			n = recv(trackersockfd,offset,bytes_toReceive,0);
+			bytes_toReceive-n;
+			offset += n;
+		}
+}
+
 struct fileList* fileAt(int i){
 	int x;
 	struct fileList *current = head;
@@ -260,20 +271,21 @@ int main(int argc, char* argv[])
 				n = recv(trackersockfd,buffer,sizeof(buffer),0);
 				if(n<=0) syserr("lost connection to tracker");
 				printf("[%d] %s ",count, buffer);
+				printf(": %d bytes from tracker\n",n);
 				strcpy(current->filename,buffer);
 				memset(buffer,0,sizeof(buffer));
 				n = recv(trackersockfd,buffer,sizeof(buffer),0);
 				if(n<=0) syserr("lost connection to tracker");
-				printf("received: %d bytes from tracker\n",n);
 				strcpy(current->ip,buffer);
 				printf("%s:", buffer);//printf("%s:",current->ip);
+				printf("received: %d bytes from tracker\n",n);
 				uint32_t portIn;
 				memset(buffer,0,sizeof(buffer));
 				n = recv(trackersockfd,&portIn,sizeof(uint32_t),0);
 				if(n<=0) syserr("lost connection to tracker");
-				printf("received: %d bytes from tracker\n",n);
 				uint32_t peerPort = ntohl(portIn);
 				printf("%d\n",peerPort);
+				printf("received: %d bytes from tracker\n",n);
 				memset(buffer,0,sizeof(buffer));
 				n = recv(trackersockfd,buffer,sizeof(buffer),0);
 				buffer[n] = '\0';
@@ -286,7 +298,6 @@ int main(int argc, char* argv[])
 					current->ip = malloc(sizeof(buffer));
 				}
 				else current = current->nextFile;
-				printf("got %s\n", buffer);
 				count++;
 			}
 		}
@@ -340,11 +351,15 @@ int main(int argc, char* argv[])
 			fclose(f);
 			close(peersockfd);
 			printf("%s downloaded successully.\n",selected->filename);
-
 	
 		}
 		else if(strcmp(toke,"exit")==0){
-			printf("exit\n");
+			close(trackersockfd);
+			printf("Connection to the tracker %s:%d terminated.\n",argv[1],argv[2]);
+			close(serversockfd);
+			pthread_kill(servt);
+			printf("File server at port %d terminated.\nBye now!\n",argv[3]);
+			return 1;
 		}
 		else if(strcmp(toke,"print")==0){
 			struct fileList *current = head;
