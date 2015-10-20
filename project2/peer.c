@@ -24,15 +24,20 @@ struct fileList *tail;
 
 void syserr(char* msg) { perror(msg); exit(-1); }
 
-void receiveAll(char *buffer, int bytes){
+int receiveAll(char *buffer, int bytes){
 		int n=0;
+		int bytes_Received= 0;
 		int bytes_toReceive = bytes;
-		void *offset = buffer;
+		char *offset = buffer;
 		while(bytes_toReceive > 0){
 			n = recv(trackersockfd,offset,bytes_toReceive,0);
-			bytes_toReceive-n;
+			if(n<=0) break;
+			bytes_toReceive-=n;
+			bytes_Received+=n;
 			offset += n;
 		}
+		//print
+		return bytes_Received; 
 }
 
 struct fileList* fileAt(int i){
@@ -268,29 +273,32 @@ int main(int argc, char* argv[])
 			int count = 0;
 			while(strcmp(buffer,"EOL")){
 				memset(buffer,0,sizeof(buffer));
-				n = recv(trackersockfd,buffer,sizeof(buffer),0);
-				if(n<=0) syserr("lost connection to tracker");
+				receiveAll(buffer,sizeof(buffer));
+				//n = recv(trackersockfd,buffer,sizeof(buffer),0);
+				//if(n<=0) syserr("lost connection to tracker");
 				printf("[%d] %s ",count, buffer);
-				printf(": %d bytes from tracker\n",n);
+				//printf(": %d bytes from tracker\n",n);
 				strcpy(current->filename,buffer);
 				memset(buffer,0,sizeof(buffer));
-				n = recv(trackersockfd,buffer,sizeof(buffer),0);
+				receiveAll(buffer,sizeof(buffer));
+				//n = recv(trackersockfd,buffer,sizeof(buffer),0);
 				if(n<=0) syserr("lost connection to tracker");
 				strcpy(current->ip,buffer);
 				printf("%s:", buffer);//printf("%s:",current->ip);
-				printf("received: %d bytes from tracker\n",n);
+				//printf("received: %d bytes from tracker\n",n);
 				uint32_t portIn;
 				memset(buffer,0,sizeof(buffer));
 				n = recv(trackersockfd,&portIn,sizeof(uint32_t),0);
 				if(n<=0) syserr("lost connection to tracker");
 				uint32_t peerPort = ntohl(portIn);
 				printf("%d\n",peerPort);
-				printf("received: %d bytes from tracker\n",n);
+				//printf("received: %d bytes from tracker\n",n);
 				memset(buffer,0,sizeof(buffer));
-				n = recv(trackersockfd,buffer,sizeof(buffer),0);
-				buffer[n] = '\0';
-				printf("received %s: %d bytes from tracker\n",buffer,n);
-				if(n<=0) syserr("lost connection to tracker");
+				receiveAll(buffer,sizeof(buffer));
+				//n = recv(trackersockfd,buffer,sizeof(buffer),0);
+				//buffer[n] = '\0';
+				//printf("received %s: %d bytes from tracker\n",buffer,n);
+				//if(n<=0) syserr("lost connection to tracker");
 				current->port = peerPort;
 				if(strcmp(buffer,"EOL") && current->nextFile==NULL){
 				   	current->nextFile = malloc(sizeof(struct fileList));					current = current->nextFile;
@@ -336,12 +344,14 @@ int main(int argc, char* argv[])
 			printf("Receiving %d bytes from peer...\n", bytes_toRead);
 			while(bytes_toRead > 0){
 				memset(buffer,0,sizeof(buffer));
-				bytes_read = read(peersockfd,buffer,sizeof(buffer));
+				//bytes_read = read(peersockfd,buffer,sizeof(buffer));
 				if(bytes_read <= 0) printf("error\n");
 				if(bytes_toRead < 256){
+					bytes_read = receiveAll(buffer,bytes_toRead);
 					bytes_written = fwrite(buffer,bytes_toRead,1,f);
 				}
 				else{
+					bytes_read = receiveAll(buffer,sizeof(buffer));
 					bytes_written = fwrite(buffer,sizeof(buffer),1,f);
 
 				}
