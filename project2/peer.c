@@ -367,10 +367,10 @@ int main(int argc, char* argv[])
 		}
 		else if(strcmp(toke,"exit")==0){
 			close(trackersockfd);
-			printf("Connection to the tracker %s:%d terminated.\n",argv[1],argv[2]);
+			printf("Connection to the tracker terminated.\n");
 			close(serversockfd);
 			pthread_kill(servt);
-			printf("File server at port %d terminated.\nBye now!\n",argv[3]);
+			printf("File server terminated.\nBye now!\n");
 			return 1;
 		}
 		else if(strcmp(toke,"print")==0){
