@@ -24,19 +24,19 @@ struct fileList *tail;
 
 void syserr(char* msg) { perror(msg); exit(-1); }
 
-int receiveAll(char *buffer, int bytes){
+int receiveAll(int sock,char *buffer, int bytes){
 		int n=0;
 		int bytes_Received= 0;
 		int bytes_toReceive = bytes;
 		char *offset = buffer;
 		while(bytes_toReceive > 0){
-			n = recv(trackersockfd,offset,bytes_toReceive,0);
+			n = recv(sock,offset,bytes_toReceive,0);
 			if(n<=0) break;
 			bytes_toReceive-=n;
 			bytes_Received+=n;
 			offset += n;
 		}
-		//print
+		//printf("Read %d bytes\n",bytes_Received);
 		return bytes_Received; 
 }
 
@@ -90,14 +90,14 @@ void *serverLogic(void *arg){
 		int f = open(filename,0);
 		stat(filename,&st);
 		filesize = st.st_size;
-		//printf("Sending %d bytes to peer\n",filesize);
+		printf("Sending %d bytes to peer\n",filesize);
 		if(f==-1){
 			printf("error\n");
 		}
 		else{
 			uint32_t un = htonl((uint32_t)filesize);
 			n = send(clientsockfd,&un,sizeof(uint32_t),0);
-			if(n<0) printf("error");
+			if(n<0) printf("errorhere");
 			int bytes_sent,bytes_read, bytes_remaining,bytes_to_send;
 			bytes_remaining = filesize;
 			while(bytes_remaining >0 ){
@@ -115,7 +115,7 @@ void *serverLogic(void *arg){
 				}
 				bytes_remaining -= bytes_sent;
 			}
-			//printf("Finished sending file\n");
+		printf("Finished sending file\n");
 
 		}
 		close(f);
@@ -259,6 +259,9 @@ int main(int argc, char* argv[])
 		memset(buffer,0,sizeof(buffer));
 		printf("> ");
 		fgets(buffer,sizeof(buffer),stdin);
+		while(strcmp(buffer,"")==0){
+			fgets(buffer,sizeof(buffer),stdin);
+		}
 		n = strlen(buffer);
 		if(n>0 && buffer[n-1] == '\n') buffer[n-1]='\0';
 		strcpy(command, buffer);
@@ -273,14 +276,14 @@ int main(int argc, char* argv[])
 			int count = 0;
 			while(strcmp(buffer,"EOL")){
 				memset(buffer,0,sizeof(buffer));
-				receiveAll(buffer,sizeof(buffer));
+				receiveAll(trackersockfd,buffer,sizeof(buffer));
 				//n = recv(trackersockfd,buffer,sizeof(buffer),0);
 				//if(n<=0) syserr("lost connection to tracker");
 				printf("[%d] %s ",count, buffer);
 				//printf(": %d bytes from tracker\n",n);
 				strcpy(current->filename,buffer);
 				memset(buffer,0,sizeof(buffer));
-				receiveAll(buffer,sizeof(buffer));
+				receiveAll(trackersockfd,buffer,sizeof(buffer));
 				//n = recv(trackersockfd,buffer,sizeof(buffer),0);
 				if(n<=0) syserr("lost connection to tracker");
 				strcpy(current->ip,buffer);
@@ -294,7 +297,7 @@ int main(int argc, char* argv[])
 				printf("%d\n",peerPort);
 				//printf("received: %d bytes from tracker\n",n);
 				memset(buffer,0,sizeof(buffer));
-				receiveAll(buffer,sizeof(buffer));
+				receiveAll(trackersockfd,buffer,sizeof(buffer));
 				//n = recv(trackersockfd,buffer,sizeof(buffer),0);
 				//buffer[n] = '\0';
 				//printf("received %s: %d bytes from tracker\n",buffer,n);
@@ -337,7 +340,7 @@ int main(int argc, char* argv[])
 			FILE *f = fopen(selected->filename,"wb");
 			uint32_t sizeIn;
 			n = recv(peersockfd,&sizeIn,sizeof(uint32_t),0);
-			if(n<=0) printf("error\n");
+			if(n<=0) printf("error1\n");
 			uint32_t filesize = ntohl(sizeIn);
 			int bytes_read,bytes_toRead,bytes_written;
 			bytes_toRead = filesize;
@@ -345,17 +348,16 @@ int main(int argc, char* argv[])
 			while(bytes_toRead > 0){
 				memset(buffer,0,sizeof(buffer));
 				//bytes_read = read(peersockfd,buffer,sizeof(buffer));
-				if(bytes_read <= 0) printf("error\n");
 				if(bytes_toRead < 256){
-					bytes_read = receiveAll(buffer,bytes_toRead);
+					bytes_read = receiveAll(peersockfd,buffer,bytes_toRead);
 					bytes_written = fwrite(buffer,bytes_toRead,1,f);
 				}
 				else{
-					bytes_read = receiveAll(buffer,sizeof(buffer));
+					bytes_read = receiveAll(peersockfd,buffer,sizeof(buffer));
 					bytes_written = fwrite(buffer,sizeof(buffer),1,f);
 
 				}
-				if(bytes_written <0) printf("error\n");
+				if(bytes_written <0) printf("error3\n");
 				bytes_toRead -= bytes_read;
 			}
 			fclose(f);

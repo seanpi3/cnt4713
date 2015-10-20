@@ -123,7 +123,7 @@ void *trackerLogic(void *arg){
   }
 	//printf("Files added to list.\n");
   //printf("Received all files\n",buffer); 
-	printlist();
+	//printlist();
 	//printf("everything set up waiting for commands and other clients...\n");
 	for(;;){
 		memset(buffer,0,sizeof(buffer));
@@ -136,26 +136,26 @@ void *trackerLogic(void *arg){
 			while(current != NULL){
 				n = send(clt->sockfd,current->filename,sizeof(buffer),0);
 				if(n<0) lostconn(addr);
-				printf("sent: %s: %d bytes\n",current->filename, n );
+				//printf("sent: %s: %d bytes\n",current->filename, n );
 				n = send(clt->sockfd, current->IP,sizeof(buffer),0);
 				if(n<0) lostconn(addr);
-				printf("sent: %s: %d\n", current->IP,n);
+				//printf("sent: %s: %d\n", current->IP,n);
 				uint32_t portOut = htonl((uint32_t)current->port);
 				n = send(clt->sockfd, &portOut, sizeof(uint32_t),0);
 				if(n<0) lostconn(addr);
-				printf("sent: %d: %d bytes\n",current->port, n);
+				//printf("sent: %d: %d bytes\n",current->port, n);
 				current = current->nextFile;
 				if(current==NULL) {
 					msg = "EOL\0";
 					n = send(clt->sockfd, msg, sizeof(buffer),0);
 					if(n<0) lostconn(addr);
-					printf("sent EOL\n");
+					//printf("sent EOL\n");
 				}
 				else{
 					msg = "next\0";
 					n = send(clt->sockfd,msg,sizeof(buffer),0);
 					if(n<0) lostconn(addr);
-					printf("sent:%s: %d bytes \n",msg,n);
+					//printf("sent:%s: %d bytes \n",msg,n);
 				}
 			}
 		}
