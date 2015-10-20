@@ -90,7 +90,7 @@ void *serverLogic(void *arg){
 		int f = open(filename,0);
 		stat(filename,&st);
 		filesize = st.st_size;
-		printf("Sending %d bytes to peer\n",filesize);
+		//printf("Sending %d bytes to peer\n",filesize);
 		if(f==-1){
 			printf("error\n");
 		}
@@ -115,7 +115,7 @@ void *serverLogic(void *arg){
 				}
 				bytes_remaining -= bytes_sent;
 			}
-		printf("Finished sending file\n");
+		//printf("Finished sending file\n");
 
 		}
 		close(f);
