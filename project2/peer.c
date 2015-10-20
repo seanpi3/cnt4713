@@ -264,17 +264,20 @@ int main(int argc, char* argv[])
 				memset(buffer,0,sizeof(buffer));
 				n = recv(trackersockfd,buffer,sizeof(buffer),0);
 				if(n<=0) syserr("lost connection to tracker");
+				printf("received: %d bytes from tracker\n",n);
 				strcpy(current->ip,buffer);
-				printf("%s:",current->ip);
+				printf("%s:", buffer);//printf("%s:",current->ip);
 				uint32_t portIn;
 				memset(buffer,0,sizeof(buffer));
 				n = recv(trackersockfd,&portIn,sizeof(uint32_t),0);
 				if(n<=0) syserr("lost connection to tracker");
+				printf("received: %d bytes from tracker\n",n);
 				uint32_t peerPort = ntohl(portIn);
 				printf("%d\n",peerPort);
 				memset(buffer,0,sizeof(buffer));
 				n = recv(trackersockfd,buffer,sizeof(buffer),0);
 				buffer[n] = '\0';
+				printf("received %s: %d bytes from tracker\n",buffer,n);
 				if(n<=0) syserr("lost connection to tracker");
 				current->port = peerPort;
 				if(strcmp(buffer,"EOL") && current->nextFile==NULL){
@@ -283,6 +286,7 @@ int main(int argc, char* argv[])
 					current->ip = malloc(sizeof(buffer));
 				}
 				else current = current->nextFile;
+				printf("got %s\n", buffer);
 				count++;
 			}
 		}

@@ -136,29 +136,26 @@ void *trackerLogic(void *arg){
 			while(current != NULL){
 				n = send(clt->sockfd,current->filename,sizeof(buffer),0);
 				if(n<0) lostconn(addr);
-				//printf("sent: %s\n",current->filename);
-				//printf("sent %d bytes to client\n",n);
+				printf("sent: %s: %d bytes\n",current->filename, n );
 				n = send(clt->sockfd, current->IP,sizeof(buffer),0);
 				if(n<0) lostconn(addr);
-				//printf("sent: %s\n", current->IP);
-				//printf("sent %d bytes to client\n",n);
+				printf("sent: %s: %d\n", current->IP,n);
 				uint32_t portOut = htonl((uint32_t)current->port);
 				n = send(clt->sockfd, &portOut, sizeof(uint32_t),0);
 				if(n<0) lostconn(addr);
-				//printf("send: %d\n",current->port);
-				//printf("sent %d bytes to client\n",n);
+				printf("sent: %d: %d bytes\n",current->port, n);
 				current = current->nextFile;
 				if(current==NULL) {
 					msg = "EOL\0";
 					n = send(clt->sockfd, msg, sizeof(buffer),0);
 					if(n<0) lostconn(addr);
-					//printf("sent EOL\n");
+					printf("sent EOL\n");
 				}
 				else{
 					msg = "next\0";
 					n = send(clt->sockfd,msg,sizeof(buffer),0);
 					if(n<0) lostconn(addr);
-					//printf("sent %d bytes to client\n",n);
+					printf("sent:%s: %d bytes \n",msg,n);
 				}
 			}
 		}
