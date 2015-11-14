@@ -55,53 +55,44 @@ uint16_t calculateChecksum(void* data,size_t length){
 	return sum;
 }
 
-int sendPacket(int sockfd,struct sockaddr* recv_addr, int seqNum,void *data,size_t data_size){
+int sendPacket(int seqNum,void *data,size_t data_size, int sockfd,struct sockaddr *dest_addr,socklen_t dest_len){
 	char packet[sizeof(int)+sizeof(uint16_t)+data_size];
 	uint16_t checksum;
 	void *offset = packet;
 	memset(packet,0,sizeof(packet));
 	checksum = calculateChecksum(&seqNum,sizeof(int));
 	checksum += calculateChecksum(data,data_size);
-	printf("checksum: %x\n",checksum);
 	checksum = 0xffff - checksum;
+	//checksum = htons(checksum);
 	memcpy(offset,&seqNum,sizeof(int));
-	//printPacket(packet,sizeof(packet));
 	offset+=sizeof(int);
 	memcpy(offset,&checksum,sizeof(uint16_t));
-	printf("\n");
 	offset+=sizeof(uint16_t);
 	memcpy(offset,data,data_size);
-	printPacket(packet,sizeof(packet));
-	//checksum = htons(checksum);
-	//strcpy(packet,snum);
-	//strcat(packet,cs);
-	
-	//printf("packet: %s\n",packet);
-	//n = sendto(sockfd, , strlen(buffer), 0, (struct sockaddr*)&recv_addr, addrlen);
-	uint16_t check = calculateChecksum(packet,sizeof(packet));
-	printf("check: %x\n",check);
+	//printPacket(packet,sizeof(packet));
+	int n = sendto(sockfd,packet,sizeof(packet),0,dest_addr,dest_len);
 	return 1;
 }	
 
 int main(int argc, char* argv[])
 {
- // int sockfd, portno, n;
- // struct hostent* receiver;
- // struct sockaddr_in recv_addr;
- // socklen_t addrlen;
+  int sockfd, portno, n;
+  struct hostent* receiver;
+  struct sockaddr_in recv_addr;
+  socklen_t addrlen;
 	FILE *f;	
 	char *filename;
-	/*
+	
   if(argc != 4) {
     fprintf(stderr, "Usage: %s <ip> <port> <file>\n", argv[0]);
     return 1;
   }
-	*/
+	
 	//open file and check if it exists
 	filename = argv[3];
 	f = fopen(filename,"rb");
 	if(f==NULL) syserr("cannot open file: make sure it exists");
-	/*
+	
 	//check if receiver is a valid host
   receiver = gethostbyname(argv[1]);
   if(!receiver) {
@@ -122,15 +113,12 @@ int main(int argc, char* argv[])
 
  // n = recvfrom(sockfd, buffer, 255, 0, (struct sockaddr*)&recv_addr, &addrlen);
 
-  close(sockfd);
-	*/
+	
 	char buffer[packetSize];
-	int n = fread(buffer,packetSize,1,f);
-	if(n<=0) syserr("fuck\n");
-	//printf("%d\n",calculateChecksum(buffer,1024));
-	//printf("payload: %s\n",buffer);
-	printPacket(buffer,packetSize);
-	sendPacket(1,NULL,5,buffer,packetSize);
+	n = fread(buffer,packetSize,1,f);
+	if(n<=0) syserr("can't read file\n");
+	sendPacket(0,buffer,packetSize,sockfd,(struct sockaddr*)&recv_addr,addrlen);
 	fclose(f);
+  close(sockfd);
   return 0;
 }
