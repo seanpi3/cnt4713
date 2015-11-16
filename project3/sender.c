@@ -214,13 +214,14 @@ int main(int argc, char* argv[])
 	memcpy(head->payload,&nsize,sizeof(uint32_t));
 	n = pthread_create(&(head->packet_thread),NULL,&packetLogic,head);
 	if(n<0)syserr("unable to create threads");
-	pthread_join(head->packet_thread,NULL);
 	tail = head;
 	int bytes_remaining=filesize, bytes_read;
 	struct timeval tv;
 	fd_set set;
 	pthread_t ackThread;
 	n = pthread_create(&ackThread,NULL,&ackLogic,NULL);
+	pthread_join(head->packet_thread,NULL);
+	packets_completed++;
 	while(bytes_remaining > 0){
 			if(head->seq_num - tail->seq_num < windowSize){
 				head->next = malloc(sizeof(struct window));
@@ -246,7 +247,7 @@ int main(int argc, char* argv[])
 
 				n = pthread_create(&(head->packet_thread),NULL,&packetLogic,head);
 				if(n<0)syserr("unable to create threads");
-				printf("%d bytes remaining to be sent\n",bytes_remaining);
+				//printf("%d bytes remaining to be sent\n",bytes_remaining);
 			}
 			if(tail->receivedACK){
 				struct window *old = tail;
@@ -255,7 +256,7 @@ int main(int argc, char* argv[])
 				free(old->payload);
 				free(old);
 				packets_completed++;
-				//if(packets_completed%1000==0) printf("completed %d packets\n",packets_completed);
+				if(packets_completed%1000==0) printf("completed %d packets\n",packets_completed);
 			}
 	}
 	printf("Transmission complete: %d packets sent.\n",packets_completed);

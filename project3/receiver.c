@@ -117,6 +117,7 @@ int main(int argc, char *argv[])
 	int numPackets = 1000;
 	int packetsReceived = 0;
 	int bytes_remaining = 1;
+	uint32_t fileSize;
 	fd_set set;
 	while(bytes_remaining > 0){
 		memset(packet,0,sizeof(packet));
@@ -133,7 +134,7 @@ int main(int argc, char *argv[])
 				offset+=sizeof(uint16_t);
 				uint32_t sizeIn;
 				memcpy(&sizeIn,offset,sizeof(uint32_t));
-				uint32_t fileSize = ntohl(sizeIn);
+				fileSize = ntohl(sizeIn);
 				bytes_remaining = fileSize;
 				FD_ZERO(&set);
 				FD_SET(sockfd,&set);
@@ -167,11 +168,15 @@ int main(int argc, char *argv[])
 				if(n<0) printf("ERROR\n");
 				if(n==0) printf("ERROR\n");
 				packetsReceived++;
-				printf("%d bytes remaining to be received\n",bytes_remaining);
-				//if(packetsReceived%100==0) printf("Received %d packets\n",packetsReceived);
+				//printf("%d bytes remaining to be received\n",bytes_remaining);
+				if(packetsReceived%1000==0) printf("Received %d packets\n",packetsReceived);
 			}
 		}
 	}
+	printf("Transmission complete... %d packets received.\n",packetsReceived);
+	n = fwrite(file,fileSize,1,f);
+	if(n<0) syserr("cannot write file");
+	fclose(f);
   close(sockfd); 
   return 0;
 }
