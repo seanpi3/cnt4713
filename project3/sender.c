@@ -11,8 +11,8 @@
 
 int sockfd;
 int windowSize = 100;
-int payloadSize = 1024;
-int timeout = 10;
+int payloadSize = 1000;
+int to = 10;
 struct sockaddr_in recv_addr;
 socklen_t addrlen;
 
@@ -22,6 +22,7 @@ typedef struct window{
 	int receivedACK;
 	pthread_t packet_thread;
 	struct window *next;
+	int ready_to_send;
 };
 
 struct window *head;
@@ -85,7 +86,7 @@ int receiveACK(int sockfd,void* buffer,size_t length,struct sockaddr* sdr_addr,s
 	}
 	uint16_t check = calculateChecksum(buffer,length);
 	if(check==0xffff){
-		printf("Checksum verified.. ACK received.\n");
+		//printf("Checksum verified.. ACK received.\n");
 		return 1;
 	}
 	else{
@@ -126,6 +127,7 @@ void *ackLogic(void *arg){
 		FD_ZERO(&readset);
 		FD_SET(sockfd,&readset);
 		n = select(sockfd + 1,&readset,NULL,NULL,NULL);
+		//printf("ACK arrived\n");
 		n = receiveACK(sockfd,ACK,sizeof(ACK),(struct sockaddr*)&recv_addr,addrlen);
 		if(n>0){
 			offset = ACK;
@@ -133,27 +135,31 @@ void *ackLogic(void *arg){
 			seq_num = ntohl(seq_num_in);
 			struct window *packet = findPacket((int)seq_num);
 			packet->receivedACK = 1;
+			//printf("Ack received for packet %d\n",packet->seq_num);
 		}
+		if(n==0) printf("ERROR\n");
+		if(n<0) printf("ERROR\n");
 	}
 }
 
 void *packetLogic(void *arg){
 		struct window *packet = (struct window *)arg;
-		//printf("Sending packet %d\n", packet->seq_num);
 		packet->receivedACK = 0;
 		fd_set set;
 		struct timeval timeout;
 		timeout.tv_sec = 0;
-		timeout.tv_usec = 10 * 1000;
+		timeout.tv_usec = to * 1000;
 		int n;
 		do{
-			FD_ZERO(&set);
-			FD_SET(sockfd,&set);
-			n = select(sockfd+1,NULL,&set,NULL,NULL);
-			n = sendPacket(packet->seq_num,packet->payload,
-								payloadSize,sockfd,(struct sockaddr*)&recv_addr,addrlen);
-			n = select(1,NULL,NULL,NULL,&timeout);
+				//printf("Sending packet %d\n", packet->seq_num);
+				FD_ZERO(&set);
+				FD_SET(sockfd,&set);
+				n = select(sockfd+1,NULL,&set,NULL,NULL);
+				n = sendPacket(packet->seq_num,packet->payload,
+									payloadSize,sockfd,(struct sockaddr*)&recv_addr,addrlen);
+				n = select(1,NULL,NULL,NULL,&timeout);
 		} while(!packet->receivedACK);
+		//printf("ACK received for packet %d\n",packet->seq_num);
 }
 
 int main(int argc, char* argv[])
@@ -196,7 +202,6 @@ int main(int argc, char* argv[])
 	stat(filename,&st);
 	int filesize = st.st_size;
 	int num_packets = filesize/payloadSize;
-	if(filesize%payloadSize>0) num_packets++;
 	printf("filesize: %d\n",filesize);
 	int packets_completed = 0;
 	uint32_t nsize =htonl((uint32_t)filesize);
@@ -209,44 +214,51 @@ int main(int argc, char* argv[])
 	memcpy(head->payload,&nsize,sizeof(uint32_t));
 	n = pthread_create(&(head->packet_thread),NULL,&packetLogic,head);
 	if(n<0)syserr("unable to create threads");
+	pthread_join(head->packet_thread,NULL);
 	tail = head;
 	int bytes_remaining=filesize, bytes_read;
 	struct timeval tv;
 	fd_set set;
 	pthread_t ackThread;
 	n = pthread_create(&ackThread,NULL,&ackLogic,NULL);
-	while(num_packets-packets_completed > 0){
-			if(head->seq_num - tail->seq_num < 100){
+	while(bytes_remaining > 0){
+			if(head->seq_num - tail->seq_num < windowSize){
 				head->next = malloc(sizeof(struct window));
 				head->next->seq_num = head->seq_num + 1;
 				head = head->next;
 				head->payload = malloc(payloadSize);
 				if(bytes_remaining < payloadSize){
 					bytes_read = fread(head->payload,bytes_remaining,1,f);
-					if(bytes_read<=0) syserr("can't read file\n");
+					if(bytes_read<0) syserr("can't read file\n");
+					bytes_remaining-=(bytes_remaining*bytes_read);
 				}
 				else{
 					bytes_read = fread(head->payload,payloadSize,1,f);
-					if(bytes_read<=0) syserr("can't read file\n");
+					if(bytes_read<0) syserr("can't read file\n");
+					bytes_remaining-=(payloadSize*bytes_read);
 				}
 				
 				FD_ZERO(&set);
 				FD_SET(0,&set);
 				tv.tv_sec = 0;
-				tv.tv_usec = 10 * 1000;
+				tv.tv_usec = 1;
 				select(1,NULL,NULL,NULL,&tv);
 
 				n = pthread_create(&(head->packet_thread),NULL,&packetLogic,head);
 				if(n<0)syserr("unable to create threads");
-				bytes_remaining-=bytes_read;
+				printf("%d bytes remaining to be sent\n",bytes_remaining);
 			}
 			if(tail->receivedACK){
 				struct window *old = tail;
 				tail = tail->next;
+				pthread_join(old->packet_thread,NULL);
 				free(old->payload);
 				free(old);
+				packets_completed++;
+				//if(packets_completed%1000==0) printf("completed %d packets\n",packets_completed);
 			}
 	}
+	printf("Transmission complete: %d packets sent.\n",packets_completed);
 	fclose(f);
   close(sockfd);
   return 0;
