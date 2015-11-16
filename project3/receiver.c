@@ -85,11 +85,15 @@ int main(int argc, char *argv[])
   struct sockaddr_in serv_addr, sdr_addr; 
   socklen_t addrlen;
 	char packet[sizeof(uint32_t)+sizeof(uint16_t)+1024];
+	char *filename;
+	void *file;
 
   if(argc != 3) { 
     fprintf(stderr,"Usage: %s <port> <filename>\n", argv[0]);
     return 1;
   } 
+	filename = argv[2];
+
   portno = atoi(argv[1]);
 
   sockfd = socket(AF_INET, SOCK_DGRAM, 0); 
@@ -103,25 +107,45 @@ int main(int argc, char *argv[])
   if(bind(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) 
     syserr("can't bind");
   addrlen = sizeof(serv_addr); 
-	memset(packet,0,sizeof(packet));
-	n = receivePacket(sockfd,packet,sizeof(packet),(struct sockaddr*)&serv_addr,addrlen);
-	if(n<0) syserr ("failed to receive packet\n");
-	
-	void *offset = packet;
-	uint32_t seq_num;
-	uint32_t seq_num_in;
-	memcpy(&seq_num_in,offset,sizeof(uint32_t));
-	seq_num = ntohl(seq_num_in);
-	offset+=sizeof(uint32_t);
-	offset+=sizeof(uint16_t);
-	uint32_t sizeIn;
-	memcpy(&sizeIn,offset,sizeof(uint32_t));
-	uint32_t fileSize = ntohl(sizeIn);
-	//char payload[1024];
-	//memcpy(payload,offset,1024);
-  //if(n < 0) syserr("can't send to server"); 
-	printf("Packet received.\nseqnum:%d, filesize: %d\n",seq_num,fileSize);
-	sendACK((int)seq_num,sockfd,(struct sockaddr*)&serv_addr,addrlen);
+
+	int numPackets;
+	int packetsReceived = 0;
+	while(1){
+		memset(packet,0,sizeof(packet));
+		n = receivePacket(sockfd,packet,sizeof(packet),(struct sockaddr*)&serv_addr,addrlen);
+		if(n<0) syserr ("failed to receive packet\n");
+		if(n>0){
+			void *offset = packet;
+			uint32_t seq_num;
+			uint32_t seq_num_in;
+			memcpy(&seq_num_in,offset,sizeof(uint32_t));
+			seq_num = ntohl(seq_num_in);
+			if(seq_num == 0){
+				offset+=sizeof(uint32_t);
+				offset+=sizeof(uint16_t);
+				uint32_t sizeIn;
+				memcpy(&sizeIn,offset,sizeof(uint32_t));
+				uint32_t fileSize = ntohl(sizeIn);
+				printf("Packet received.\nseqnum:%d, filesize: %d\n",seq_num,fileSize);
+				sendACK((int)seq_num,sockfd,(struct sockaddr*)&serv_addr,addrlen);
+				numPackets = fileSize/1000;
+				if(fileSize%100!=0) numPackets++;
+				packetsReceived++;
+				file = malloc(fileSize);
+			}
+			else{
+				offset+=sizeof(uint32_t);
+				offset+=sizeof(uint16_t);
+				char payload[1000];
+				memcpy(payload,offset,1000);
+				offset = file;
+				offset+=((seq_num-1)*1000);
+				memcpy(offset,payload,1000);
+				sendACK((int)seq_num,sockfd,(struct sockaddr*)&serv_addr,addrlen);
+				packetsReceived++;
+			}
+		}
+	}
   close(sockfd); 
   return 0;
 }

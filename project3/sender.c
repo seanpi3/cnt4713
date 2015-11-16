@@ -139,7 +139,7 @@ void *ackLogic(void *arg){
 
 void *packetLogic(void *arg){
 		struct window *packet = (struct window *)arg;
-		printf("Sending packet %d\n", packet->seq_num);
+		//printf("Sending packet %d\n", packet->seq_num);
 		packet->receivedACK = 0;
 		fd_set set;
 		struct timeval timeout;
