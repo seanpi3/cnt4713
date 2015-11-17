@@ -160,8 +160,8 @@ void *packetLogic(void *arg){
 				//n = select(0,NULL,NULL,NULL,&timeout);
 			
 				int i;
-				timeout.tv_usec = 1000;
-				for(i=0;i<10;i++){
+				timeout.tv_usec = 1;
+				for(i=0;i<10000;i++){
 					n = select(0,NULL,NULL,NULL,&timeout);
 					if(packet->receivedACK) break;
 				}
@@ -261,7 +261,7 @@ int main(int argc, char* argv[])
 				free(old->payload);
 				free(old);
 				packets_completed++;
-				if(packets_completed%100==0) printf("completed %d packets\n",packets_completed);
+				if(packets_completed%1000==0) printf("%d packets completed\n",packets_completed);
 			}
 	}
 	printf("Transmission complete: %d packets sent.\n",packets_completed);

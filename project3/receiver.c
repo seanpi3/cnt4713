@@ -209,9 +209,9 @@ int main(int argc, char *argv[])
 				if(n==0) printf("ERROR\n");
 				receivedPackets[seq_num] == seq_num;
 				packetsReceived++;
-				printf("Received packet %d\n",seq_num);
+				//printf("Received packet %d\n",seq_num);
 				//printf("%d bytes remaining to be received\n",bytes_remaining);
-				//if(packetsReceived%1000==0) printf("Received %d packets\n",packetsReceived);
+				if(packetsReceived%1000==0) printf("%d packets received\n",packetsReceived);
 			}
 			else{
 				FD_ZERO(&set);
