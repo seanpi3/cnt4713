@@ -127,7 +127,7 @@ void *ackLogic(void *arg){
 		FD_ZERO(&readset);
 		FD_SET(sockfd,&readset);
 		n = select(sockfd + 1,&readset,NULL,NULL,NULL);
-		//printf("ACK arrived\n");
+	//printf("ACK arrived\n");
 		n = receiveACK(sockfd,ACK,sizeof(ACK),(struct sockaddr*)&recv_addr,addrlen);
 		if(n>0){
 			offset = ACK;
@@ -157,7 +157,15 @@ void *packetLogic(void *arg){
 				n = select(sockfd+1,NULL,&set,NULL,NULL);
 				n = sendPacket(packet->seq_num,packet->payload,
 									payloadSize,sockfd,(struct sockaddr*)&recv_addr,addrlen);
-				n = select(1,NULL,NULL,NULL,&timeout);
+				//n = select(0,NULL,NULL,NULL,&timeout);
+			
+				int i;
+				timeout.tv_usec = 1000;
+				for(i=0;i<10;i++){
+					n = select(0,NULL,NULL,NULL,&timeout);
+					if(packet->receivedACK) break;
+				}
+				
 		} while(!packet->receivedACK);
 		//printf("ACK received for packet %d\n",packet->seq_num);
 }
@@ -197,11 +205,13 @@ int main(int argc, char* argv[])
 	addrlen = sizeof(recv_addr);
 
 	
+	time_t start_time = time(NULL);
  // n = recvfrom(sockfd, buffer, 255, 0, (struct sockaddr*)&recv_addr, &addrlen);
 	struct stat st;
 	stat(filename,&st);
 	int filesize = st.st_size;
 	int num_packets = filesize/payloadSize;
+	if(num_packets%payloadSize!=0) num_packets++;
 	printf("filesize: %d\n",filesize);
 	int packets_completed = 0;
 	uint32_t nsize =htonl((uint32_t)filesize);
@@ -215,7 +225,8 @@ int main(int argc, char* argv[])
 	n = pthread_create(&(head->packet_thread),NULL,&packetLogic,head);
 	if(n<0)syserr("unable to create threads");
 	tail = head;
-	int bytes_remaining=filesize, bytes_read;
+	int bytes_remaining = filesize;
+	int bytes_read;
 	struct timeval tv;
 	fd_set set;
 	pthread_t ackThread;
@@ -239,12 +250,6 @@ int main(int argc, char* argv[])
 					bytes_remaining-=(payloadSize*bytes_read);
 				}
 				
-				FD_ZERO(&set);
-				FD_SET(0,&set);
-				tv.tv_sec = 0;
-				tv.tv_usec = 1;
-				select(1,NULL,NULL,NULL,&tv);
-
 				n = pthread_create(&(head->packet_thread),NULL,&packetLogic,head);
 				if(n<0)syserr("unable to create threads");
 				//printf("%d bytes remaining to be sent\n",bytes_remaining);
@@ -256,10 +261,13 @@ int main(int argc, char* argv[])
 				free(old->payload);
 				free(old);
 				packets_completed++;
-				if(packets_completed%1000==0) printf("completed %d packets\n",packets_completed);
+				if(packets_completed%100==0) printf("completed %d packets\n",packets_completed);
 			}
 	}
 	printf("Transmission complete: %d packets sent.\n",packets_completed);
+	time_t end_time = time(NULL);
+	printf("Transmission completed in %d seconds\n",end_time-start_time);
+	printf("Throughput = %dMB/s\n",(filesize/(end_time-start_time))/100000);
 	fclose(f);
   close(sockfd);
   return 0;

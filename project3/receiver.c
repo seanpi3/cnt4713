@@ -8,6 +8,24 @@
 #include <arpa/inet.h>
 
 size_t packetSize = sizeof(int) + sizeof(uint16_t) + 1000;
+int *receivedPackets;
+int rfp=0;
+
+typedef struct filepackets{
+	int seq_num;
+	struct filepackets *next;
+};
+struct filepackets *head;
+struct filepackets *tail;
+
+int alreadyReceived(int seq_num){
+	struct filepackets *current = tail;
+	while(current!=NULL){
+		if(current->seq_num==seq_num) return 1;
+		current=current->next;
+	}
+	return 0;
+}
 
 void syserr(char *msg) { perror(msg); exit(-1); }
 
@@ -114,13 +132,26 @@ int main(int argc, char *argv[])
     syserr("can't bind");
   addrlen = sizeof(sdr_addr); 
 
-	int numPackets = 1000;
+	int numPackets;
 	int packetsReceived = 0;
-	int bytes_remaining = 1;
+	int bytes_remaining;
 	uint32_t fileSize;
 	fd_set set;
-	while(bytes_remaining > 0){
+	struct timeval tv;
+	FD_ZERO(&set);
+	FD_SET(sockfd,&set);
+	n = select(sockfd+1,&set,NULL,NULL,NULL);
+	head = malloc(sizeof(struct filepackets));
+	head->next = NULL;
+	tail = head;
+	while(1){
 		memset(packet,0,sizeof(packet));
+		FD_ZERO(&set);
+		FD_SET(sockfd,&set);
+		tv.tv_sec = 5;
+		tv.tv_usec = 0;
+		n = select(sockfd+1,&set,NULL,NULL,&tv);
+		if(n==0) break;
 		n = receivePacket(sockfd,packet,sizeof(packet),(struct sockaddr*)&sdr_addr,addrlen);
 		if(n<0) syserr ("failed to receive packet\n");
 		if(n>0){
@@ -129,7 +160,8 @@ int main(int argc, char *argv[])
 			uint32_t seq_num_in;
 			memcpy(&seq_num_in,offset,sizeof(uint32_t));
 			seq_num = ntohl(seq_num_in);
-			if(seq_num == 0){
+			int alr_recvd;
+			if(!rfp && seq_num == 0){
 				offset+=sizeof(uint32_t);
 				offset+=sizeof(uint16_t);
 				uint32_t sizeIn;
@@ -140,13 +172,21 @@ int main(int argc, char *argv[])
 				FD_SET(sockfd,&set);
 				n = select(sockfd+1,NULL,&set,NULL,NULL);
 				sendACK((int)seq_num,sockfd,(struct sockaddr*)&sdr_addr,addrlen);
-				numPackets = fileSize/1000;
-				if(fileSize%100!=0) numPackets++;
+				numPackets = fileSize/payloadSize;
+				if(fileSize%payloadSize!=0) numPackets++;
 				printf("filesize: %d\nexpecting %d packets\n",fileSize,numPackets);
 				packetsReceived++;
 				file = malloc(fileSize);
+				receivedPackets = malloc(sizeof(int)*numPackets);
+				memset(receivedPackets,0,sizeof(int)*numPackets);
+				receivedPackets[seq_num] = seq_num;
+				head->seq_num = seq_num;
+				rfp = 1;
 			}
-			else{
+			else if(!alreadyReceived(seq_num)){
+				head->next = malloc(sizeof(struct filepackets));
+				head = head->next;
+				head->seq_num = seq_num;
 				offset+=sizeof(uint32_t);
 				offset+=sizeof(uint16_t);
 				char payload[payloadSize];
@@ -167,12 +207,21 @@ int main(int argc, char *argv[])
 				n = sendACK((int)seq_num,sockfd,(struct sockaddr*)&sdr_addr,addrlen);
 				if(n<0) printf("ERROR\n");
 				if(n==0) printf("ERROR\n");
+				receivedPackets[seq_num] == seq_num;
 				packetsReceived++;
+				printf("Received packet %d\n",seq_num);
 				//printf("%d bytes remaining to be received\n",bytes_remaining);
-				if(packetsReceived%1000==0) printf("Received %d packets\n",packetsReceived);
+				//if(packetsReceived%1000==0) printf("Received %d packets\n",packetsReceived);
+			}
+			else{
+				FD_ZERO(&set);
+				FD_SET(sockfd,&set);
+				n = select(sockfd+1,NULL,&set,NULL,NULL);
+				n = sendACK((int)seq_num,sockfd,(struct sockaddr*)&sdr_addr,addrlen);
 			}
 		}
 	}
+	printf("filesize: %d\nexpecting %d packets\n",fileSize,numPackets);
 	printf("Transmission complete... %d packets received.\n",packetsReceived);
 	n = fwrite(file,fileSize,1,f);
 	if(n<0) syserr("cannot write file");
