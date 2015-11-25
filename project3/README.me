@@ -1,0 +1,39 @@
+In this assignment, you are asked to implement the sender and the receiver that communicate using the GBN protocol using UDP. The logic of the GBN protocol can be obtained from the textbook or online resources. You are also asked to test your implementation on mininet with and without packet losses.
+
+The Sender
+The sender takes the following three command-line arguments:
+the receiver's ip
+the receiver's port number
+the name of the file to be sent by the sender
+The sender program should do normal sanity check. For example, prompt helpful information if the arguments are not properly provided, or if the file does not exist or cannot be found or read, etc.
+The sender program should implement the sender's logic of GBN using UDP messages:
+The sender maintains a sliding window. We set the window size to be 100 packets.
+The packet size should be 1 KB at maximum (excluding header).
+The user can define whatever packet header format for the data packets and the ACK packets. However, you should at least include a sequence number of the data packet or ACK packet (which starts from zero and you don't need to worry about wrap around). You should also implement checksum to cope with the situation that  packets may be corrupted during transit. The sender can also include the total number of packets to sent in the header so that the receiver can terminate appropriately.
+The sender sends and receives via UDP.
+You should use 10 ms as the retransmission timeout period.
+You don't need to implement flow control or congestion control.
+The sender needs to print out the throughput achieved when the last ACK has been received (in bits per second).
+The Receiver
+The receiver takes two command-line arguments:
+the port number it is using to receive data packets and send ACK packets
+the file name to store the received data
+The receiver program should also do normal sanity checks and handle error situations.
+The receiver should be able to find out the sender's ip and port number, by inspecting the source ip and port number from the packets it receives. We assume there is only one sender and one receiver in all tests.
+The receiver needs to implement the receiver logic of the GBN protocol, using UDP sends and receives.
+As in GBN, the receiver does not need to maintain a receiver window. 
+Upon receiving all packets (the header needs to indicate the sequence number and the total number of packets expected to be transmitted), the receiver can terminate. However, in order to be sure that the last ACK back to sender has been delivered, the receiver can stay alive for some time (say, 60 seconds) so that it can still handle sender retransmissions.
+Proper received data should be stored in the given file. By comparing the file sent and received, you'll know whether your logic is correct. By inspecting the throughput, you should know if you are truly able to handle multiple packets with respect to the max window size.
+You should test your GBN protocol on mininet (using the default topology of two hosts and one router), first over links with no packet loss, and later using links with 10% packet loss. You need to provide evidence of how you run mininet to test your program for the two cases and what results have been achieved in a single document (pdf or word).
+
+Please submit your work through moodle as one gzipped tar file. Follow the instructions below carefully (to avoid unnecessary loss of grade):
+
+To start, first create a directory for this homework and name it firstname-lastname-homework-3 (all lower case! Of course, you'd use your real name to replace firstname and lastname).  You should place the source code and the Makefile in this directory. One should be able to create the executables for both tracker and peer programs by simply typing 'make'. The Makefile should also contain a 'clean' target for cleaning up the directory (removing all temporary files, object files and executable files). Make sure you don't include intermediate files in your submission: *.o, executables, *~, etc. (There'll be a penalty for including unnecessary intermediate files). 
+
+To prepare for the gzipped tar file, cd to the parent directory and run the following command to create the file for submission:
+
+% tar czvf firstname-lastname-homework-3.tar.gz firstname-lastname-homework-3
+
+Please make sure you submit homework before the deadline. Late submission will incur penalties as specified in the syllabus. 
+
+This homework is worth 20% of the total grade. Penalties will be applied for late submissions according to the syllabus.

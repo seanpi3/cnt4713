@@ -6,3 +6,55 @@ get:		Copies a file from the server to the client.
 put:		Copies a file from the client to the server.
 exit:		Disconnects the client from the server and closes the client.
 stop:		Disconnects the client from the server and stops the server.
+
+Instructions:
+In this assignment, you're expected to use the TCP socket programming interface in C/C++ to implement a home-grown application doing file transfers.
+
+More specifically, you are expected to create two programs: myftpserver.c and myftpclient.c.
+
+The server program, myftpserver, is expected to run on a machine receiving commands from one or several clients simultaneously on a particular port. The user can provide a port number as a command line argument (as in the tcpserver example); if not, the default is 5555. The server must create a separate child process for each incoming client TCP connection (using fork), which responds to the commands from each client independently.
+
+The client, myftpclient, is expected to create a TCP connection to a server running on a machine and at a particular port. The program requires two arguments; the user needs to provide the remote machine's name and the port number (as in the tcpclient example). After the connection is established, the client accepts commands from user from standard input (keyboard), translates the input and sends the corresponding commands to the remote server, which would act accordingly (such as listing files, downloading or uploading files). Here is a list of commands explained in an example (assuming the myftpclient program is already running on port 5678 of the machine named netcentric.cis.fiu.edu; you can use the name localhost if you want to test on the same machine):
+
+% ./myftpclient netcentric.cis.fiu.edu 5678
+Connection to netcentric.cis.fiu.edu:5678 established. Now awaiting commands...
+
+netcentric.cis.fiu.edu:5678> ls-remote
+Files at the server (netcentric.cis.fiu.edu):
+file1
+file2
+... 
+(this command lists, one on each line, all files in the current directory from which the server is running)
+
+netcentric.cis.fiu.edu:5678> ls-local
+Files at the client:
+file3
+file4
+... 
+(this command lists, one on each line, all files in the current directory from which the client is running)
+
+netcentric.cis.fiu.edu:5678> get file1
+Retrieve 'file1' from remote server: successful
+(file1 should be a file at the remote server; the program should indicate error if the file does not exist or error occurs during the transfer)
+
+netcentric.cis.fiu.edu:5678> put file3
+Upload 'file3' to remote server: successful
+(file3 should be a file at the client in the current directory; the program should report error if the file does not exist or error occurs during the transfer)
+
+netcentric.cis.fiu.edu:5678> exit
+Connection to server netcentric.cis.fiu.edu:5678 terminated. Bye now!
+Note that the server should be able to simultaneously handle multiple client connections (you must use multiple processes in this case). Make sure your code can transmit files correctly (upload or download) by comparing the files at the client and the server.
+
+Your program should contain necessary error checking and prompt the users accordingly of the errors, which include, for example, unknown commands, problems when communicating with remote server, etc.
+
+Please submit your work through moodle as one gzipped tar file. Follow the instructions below carefully (to avoid unnecessary loss of grade):
+
+To start, first create a directory for this homework and name it firstname-lastname-homework-1 (all lower case! Of course, you'd use your real name to replace firstname and lastname).  You should place the source code and the Makefile in this directory. One should be able to create the executables for both client and server programs by simply typing 'make'. The Makefile should also contain a 'clean' target for cleaning up the directory (removing all temporary files, object files and executable files). Make sure you don't include intermediate files: *.o, executables, *~, etc. (There'll be a penalty for including unnecessary intermediate files). 
+
+To prepare for the gzipped tar file, cd to the parent directory and run the following command to create the file for submission:
+
+% tar czvf firstname-lastname-homework-1.tar.gz firstname-lastname-homework-1
+
+Please make sure you submit homework before the deadline. Late submission will incur penalties as specified in the syllabus. 
+
+This homework is worth 20% of the total grade. Penalties will be applied for late submissions according to the syllabus.
