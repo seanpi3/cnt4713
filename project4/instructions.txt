@@ -1,0 +1,24 @@
+1/17: Homework #4: Simple DES (due on 12/1 at 23:55, 20% grade)
+Create a program to encrypt and decrypt files using S-DES (Simplified DES) with Cipher Block Chaining (CBC). The program takes the input of an initial key and an initial vector, reads the plaintext (or ciphertext) from a file, conducts the encryption (or decryption), and writes the resulting ciphertext (or plaintext) into a second file. 
+
+You can find the description of the S-DES algorithm and Cipher Block Chaining (CBC) separately in moodle. 
+
+A test case is as follows: using a binary initialization vector of 10101010, a binary plaintext of 00000001 00100011 (that's two bytes stored in a binary file) encrypted with a binary key of 0111111101 should give a binary ciphertext of 11110100 00001011 (that's two bytes stored in another binary file). Decryption should work correspondingly. 
+
+The program should take a command in the following format:
+
+% mycipher [-d] <init_key> <init_vector> <original_file> <result_file>
+where <init_key> is the 10-bit initial key (written plainly as ones and zeros in the command line). <init_vector> is the 8-bit initial vector (also written plainly as ones and zeros). <original_file> is the name of the file to be encrypted or decrypted. <result_file> is the name of the file containing the result of the encryption or decryption. With the -d option, the program does decryption; without it, the program does encryption. For example: the command "mycipher -d 0111111101 10101010 file1 file2" does the decryption, where file1 contains the ciphertext as input (it's a binary file), and file2 will be created to contain the result plaintext (it's also a binary file).
+
+For all programming assignments, you must provide sufficiently detailed comments with your code so that someone reviewing your code may understand what you're doing without too much second guess. It'll be your loss if the instructor finds it difficult to understand your code. 
+
+You need to make sure that the encryption/decryption is done properly. One may lose significant points if the results are not expected according to the S-DES specification.
+
+Please submit your work through moodle as one gzipped tar file. Follow the instructions below carefully (to avoid unnecessary loss of grade):
+
+To start, first create a directory for this homework and name it firstname-lastname-homework-4 (of course, you'd use your real name here).  You should place the source code along with the Makefile in the directory. One should be able to create the executable program by simply 'make'. The Makefile should also contain 'clean' target for cleaning up the directory (removing all temporary files, object files and the executable file). Make sure you don't include intermediate files: *.o, executables, *~, etc. (There'll be a penalty for including unnecessary intermediate files). 
+
+To prepare for the gzipped tar file, cd to the parent directory and run the following command to create the file for submission:
+
+% tar czvf firstname-lastname-homework-4.tar.gz firstname-lastname-homework-4
+Please make sure you submit homework before the deadline. Penalties will be applied for late submissions according to the syllabus.
