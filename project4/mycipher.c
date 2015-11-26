@@ -54,23 +54,26 @@ int main(int argc, char* argv[]){
 			fprintf(stderr,"Init key must be 10 bits.\n");
 			return 1;
 		}
+		else set_init_key(argv[2]);
 		if(strlen(argv[3]) != 8){
 			fprintf(stderr,"Init vector must be 8 bits.\n");
 			return 1;
 		}
+		else set_init_vector(argv[3]);
 	}
 	else{
+		decrypt = 0;
 		if(strlen(argv[1]) != 10){
 			fprintf(stderr,"Init key must be 10 bits.\n");
 			return 1;
 		}
+		else set_init_key(argv[1]);
 		if(strlen(argv[2]) != 8){
 			fprintf(stderr,"Init vector must be 8 bits.\n");
 			return 1;
 		}
+		else set_init_vector(argv[2]);
 	}
-	set_init_key(argv[1]);
-	set_init_vector(argv[2]);
 	
 	return 0;
 }
