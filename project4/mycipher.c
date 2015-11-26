@@ -32,8 +32,8 @@ void set_init_vector(char* key){
 }
 
 int main(int argc, char* argv[]){
-	char init_key[10];
-	char init_vector[8];
+	char* init_key;
+	char* init_vector;
 	char* original_file_name;
 	char* result_file_name;
 	int decrypt;
@@ -43,7 +43,7 @@ int main(int argc, char* argv[]){
 		return 1; 
 	}
 	if(argc == 6){
-		if(strcmp(argv[1],"[-d]") || strcmp(argv[1],"-d")){
+		if(strcmp(argv[1],"[-d]") && strcmp(argv[1],"-d")){
 			fprintf(stderr,"Unrecognized command %s\n",argv[1]);
 			return 1;
 		}
@@ -54,12 +54,14 @@ int main(int argc, char* argv[]){
 			fprintf(stderr,"Init key must be 10 bits.\n");
 			return 1;
 		}
-		else set_init_key(argv[2]);
+		else init_key = argv[2];
 		if(strlen(argv[3]) != 8){
 			fprintf(stderr,"Init vector must be 8 bits.\n");
 			return 1;
 		}
-		else set_init_vector(argv[3]);
+		else init_vector = argv[3];
+		original_file_name = argv[4];
+		printf("The program will now decrypt the file %s with the key %s and the vector %s\n", original_file_name,init_key,init_vector);
 	}
 	else{
 		decrypt = 0;
@@ -67,12 +69,14 @@ int main(int argc, char* argv[]){
 			fprintf(stderr,"Init key must be 10 bits.\n");
 			return 1;
 		}
-		else set_init_key(argv[1]);
+		else init_key = argv[1];
 		if(strlen(argv[2]) != 8){
 			fprintf(stderr,"Init vector must be 8 bits.\n");
 			return 1;
 		}
-		else set_init_vector(argv[2]);
+		else init_vector = argv[2];
+		original_file_name = argv[3];
+		printf("The program will now encrypt the file %s with the key %s and the vector %s\n", original_file_name,init_key,init_vector);
 	}
 	
 	return 0;
