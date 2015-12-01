@@ -70,8 +70,44 @@ void IP(char* init_key){
 }
 
 //The function fsubk(fk) for encryption as described in section C.3 of the S-DES documentation
-char* fk(char K1[8]){
-	
+char* fk(char text_byte, char* K1){
+		char L,R;
+		char key = 0x00;
+		int i;
+		for(i=0;i<8;i++){
+			key = key << 1;
+			if(K1[i]=='1'){
+				key = key | 0x01;
+			}
+			else{
+				key = key & 0xFE;
+			}
+		}
+		L = text_byte & 0xF0;
+		R = text_byte & 0x0F;
+		char *right = malloc(4);
+		for(i=0;i<4;i++){
+			right[i] = (R >> (4-i)) & 0x01
+		}
+		char *perm_exp = malloc(8);
+		perm_exp[0] = right[4];
+		perm_exp[1] = right[1];
+		perm_exp[2] = right[2];
+		perm_exp[3] = right[3];
+		perm_exp[4] = right[4];
+		perm_exp[5] = right[3];
+		perm_exp[6] = right[4];
+		perm_exp[7] = right[1];
+		char EP = 0x00;
+		for(i=0;i<8;i++){
+			EP = EP << 1;
+			if(perm_exp[i]==0x01){
+				EP = EP | 0x01;
+			}
+			else{
+				EP = EP & 0xFE;
+			}
+		}
 }
 
 
@@ -125,44 +161,45 @@ int main(int argc, char* argv[]){
 		original_file_name = argv[3];
 		printf("The program will now encrypt the file %s with the key %s and the vector %s\n", original_file_name,init_key,init_vector);
 	}
-	
-	//Produce k1 and k2
-	char permutation[10];
-	int i;
-	for(i=0;i<10;i++){
-		permutation[i] = init_key[i];
-	}
-	P10(permutation);
-	printf("Permutation: %s\n", permutation);
-	char leftHalf[5];
-	char rightHalf[5];
-	for(i=0;i<5;i++){
-		leftHalf[i] = permutation[i];
-		rightHalf[i] = permutation[i+5];
-	}
-	LS1(leftHalf);
-	LS1(rightHalf);
-	//printf("Ls1: %s %s\n",leftHalf,rightHalf);
-	for(i=0;i<5;i++){
-		permutation[i] = leftHalf[i];
-		permutation[i+5] = rightHalf[i];
-	}
-	P8(permutation);
-	char key1[8];
-	for(i=0;i<8;i++) key1[i] = permutation[i];
-	printf("Key1: %s\n",key1);
-	for(i=0;i<2;i++){
+	if(!decrypt){
+		//Produce k1 and k2
+		char* permutation = malloc(sizeof(char)*10);
+		int i;
+		for(i=0;i<10;i++){
+			permutation[i] = init_key[i];
+		}
+		P10(permutation);
+		printf("Permutation: %s\n", permutation);
+		char leftHalf[5];
+		char rightHalf[5];
+		for(i=0;i<5;i++){
+			leftHalf[i] = permutation[i];
+			rightHalf[i] = permutation[i+5];
+		}
 		LS1(leftHalf);
 		LS1(rightHalf);
-	}	
-	for(i=0;i<5;i++){
-		permutation[i] = leftHalf[i];
-		permutation[i+5] = rightHalf[i];
+		//printf("Ls1: %s %s\n",leftHalf,rightHalf);
+		for(i=0;i<5;i++){
+			permutation[i] = leftHalf[i];
+			permutation[i+5] = rightHalf[i];
+		}
+		P8(permutation);
+		char* key1 = malloc(sizeof(char)*8);
+		for(i=0;i<8;i++) key1[i] = permutation[i];
+		printf("Key1: %s\n",key1);
+		for(i=0;i<2;i++){
+			LS1(leftHalf);
+			LS1(rightHalf);
+		}	
+		for(i=0;i<5;i++){
+			permutation[i] = leftHalf[i];
+			permutation[i+5] = rightHalf[i];
+		}
+		P8(permutation);
+		char* key2 = malloc(sizeof(char)*8);
+		for(i=0;i<8;i++) key2[i] = permutation[i];
+		printf("Key2: %s\n",key2);
+		
 	}
-	P8(permutation);
-	char key2[8];
-	for(i=0;i<8;i++) key2[i] = permutation[i];
-	printf("Key2: %s\n",key2);
-	
 	return 0;
 }
