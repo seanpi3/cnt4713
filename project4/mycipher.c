@@ -20,6 +20,7 @@ void to_binary(char* key, int bytes){
 	//free(temp);
 }
 
+//Converts a byte to an array of bits
 void to_byte_array(char byte, char *array, int bytes){
 		int i;
 		for(i=0;i<bytes;i++){
@@ -28,6 +29,7 @@ void to_byte_array(char byte, char *array, int bytes){
 		}
 }
 
+//Convets an array of bits to a single byte
 char to_byte(char *array,int bytes){
 	int i;
 	char out = 0x00;
@@ -88,7 +90,7 @@ void P8(char* init_key){
 	}
 }
 
-//Initial permutation(IP) for encryption as describes in section C.3 of the S-DES documentation
+//Initial permutation(IP) for encryption as described in section C.3 of the S-DES documentation
 void IP(char* text_byte){
 	char* permutation = malloc(8);
 	permutation[0] = text_byte[1];
@@ -105,6 +107,7 @@ void IP(char* text_byte){
 	}
 }
 
+//Inverse of the initial permutation function(IP) as described in section C.3 of the S-DES documentation
 void IP_inv(char* bytes){
 	char permutation[8];
 	permutation[0] = bytes[3];
@@ -221,23 +224,9 @@ void fk(char* text_byte, char* K){
 		for(i=0;i<4;i++){
 			text_byte[i] = text_byte[i] ^ p4[i];
 		}
-		/*
-		char p4 = 0x00;
-		for(i=0;i<4;i++){
-			p4 = p4 << 1;
-			p4 = p4 | p4a[i];
-		}
-		
-		p4 << 4;
-		L = L ^ p4;
-		*/
-		//free(right);
-		//free(perm_exp);
-		//free(p3);
-		//free(p4);
-		//return L | R;
 }
 
+//Switch function(SW)
 void SW(char* bytes){
 	char* perm = malloc(8);
 	int i;
@@ -335,7 +324,7 @@ int main(int argc, char* argv[]){
 		P8(permutation);
 		char* key1 = malloc(sizeof(char)*8);
 		for(i=0;i<8;i++) key1[i] = permutation[i];
-		printf("Key1: %s\n",key1);
+		//printf("Key1: %s\n",key1);
 		for(i=0;i<2;i++){
 			LS1(leftHalf);
 			LS1(rightHalf);
@@ -347,12 +336,13 @@ int main(int argc, char* argv[]){
 		P8(permutation);
 		char* key2 = malloc(sizeof(char)*8);
 		for(i=0;i<8;i++) key2[i] = permutation[i];
-		printf("Key2: %s\n",key2);
+		//printf("Key2: %s\n",key2);
 		to_binary(key1,8);
 		to_binary(key2,8);
 		int n;
 		char *text_byte = malloc(1);
 		char *write_byte = malloc(1);
+	//Encryption
 	if(!decrypt){
 		while(n = fread(text_byte,1,1,fin)){
 			char *bit_array = malloc(8);
@@ -366,6 +356,7 @@ int main(int argc, char* argv[]){
 			n = fwrite(write_byte,1,1,fout);
 		}
 	}
+	//Decryption
 	else{
 		while(n = fread(text_byte,1,1,fin)){
 			char *bit_array = malloc(8);
