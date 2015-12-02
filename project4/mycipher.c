@@ -8,16 +8,16 @@ void to_binary(char* key, int bytes){
 	int i;
 	for(i=0;i<bytes;i++){
 		if(key[i]=='1'){
-			temp[i] == 0x01;
+			temp[i] = 0x01;
 		}
 		else{
-			temp[i] == 0x00;
+			temp[i] = 0x00;
 		}
 	}
 	for(i=0;i<bytes;i++){
 		key[i] = temp[i];
 	}
-	free(temp);
+	//free(temp);
 }
 
 void to_byte_array(char byte, char *array, int bytes){
@@ -26,6 +26,16 @@ void to_byte_array(char byte, char *array, int bytes){
 			array[i] = (byte >> ((bytes-1) - i)) & 0x01;
 			//printf("%x\n",array[i]);
 		}
+}
+
+char to_byte(char *array,int bytes){
+	int i;
+	char out = 0x00;
+	for(i=0;i<bytes;i++){
+		out = out << 1;
+		out = out | array[i];
+	}
+	return out;
 }
 
 //10 bit permutation(P10) function for key generation as described in section C.2 of the S-DES documentaion
@@ -79,19 +89,19 @@ void P8(char* init_key){
 }
 
 //Initial permutation(IP) for encryption as describes in section C.3 of the S-DES documentation
-void IP(char* init_key){
+void IP(char* text_byte){
 	char* permutation = malloc(8);
-	permutation[0] = init_key[1];
-	permutation[1] = init_key[5];
-	permutation[2] = init_key[2];
-	permutation[3] = init_key[0];
-	permutation[4] = init_key[3];
-	permutation[5] = init_key[7];
-	permutation[6] = init_key[4];
-	permutation[7] = init_key[6];
+	permutation[0] = text_byte[1];
+	permutation[1] = text_byte[5];
+	permutation[2] = text_byte[2];
+	permutation[3] = text_byte[0];
+	permutation[4] = text_byte[3];
+	permutation[5] = text_byte[7];
+	permutation[6] = text_byte[4];
+	permutation[7] = text_byte[6];
 	int i;
 	for(i=0;i<8;i++){
-		init_key[i] = permutation[i];
+		text_byte[i] = permutation[i];
 	}
 }
 
@@ -115,54 +125,58 @@ void IP_inv(char* bytes){
 void S0(char* p0, char* p3){
 	char box[4][4];
 	box[0][0] = 1;
-	box[0][1] = 3;
-	box[0][2] = 0;
-	box[0][3] = 3;
 	box[1][0] = 0;
-	box[1][1] = 2;
-	box[1][2] = 2;
-	box[1][3] = 1;
 	box[2][0] = 3;
-	box[2][1] = 1;
-	box[2][2] = 1;
-	box[2][3] = 3;
 	box[3][0] = 2;
+	box[0][1] = 3;
+	box[1][1] = 2;
+	box[2][1] = 1;
 	box[3][1] = 0;
+	box[0][2] = 0;
+	box[1][2] = 2;
+	box[2][2] = 1;
 	box[3][2] = 3;
+	box[0][3] = 3;
+	box[1][3] = 1;
+	box[2][3] = 3;
 	box[3][3] = 2;
 	int row = (int)(p0[0] << 1) | p0[3];
 	int column = (int)(p0[1] << 1) | p0[2];
-	p3[0] = (box[row][column]>>1) & 0x01;
-	p3[1] = box[row][column] & 0x01;
+	p3[0] = (box[column][row]>>1) & 0x01;
+	p3[1] = box[column][row] & 0x01;
+	//printf("%d,%d = %d\n",column,row,box[column][row]);
+	//printf("%x%x\n",p3[0],p3[1]);
 }
 
 //S1 Box for the fk function
 void S1(char* p1, char* p3){
 	char box[4][4];
 	box[0][0] = 0;
-	box[0][1] = 2;
-	box[0][2] = 3;
-	box[0][3] = 2;
 	box[1][0] = 1;
-	box[1][1] = 0;
-	box[1][2] = 0;
-	box[1][3] = 1;
 	box[2][0] = 2;
-	box[2][1] = 1;
-	box[2][2] = 1;
-	box[2][3] = 0;
 	box[3][0] = 3;
+	box[0][1] = 2;
+	box[1][1] = 0;
+	box[2][1] = 1;
 	box[3][1] = 3;
+	box[0][2] = 3;
+	box[1][2] = 0;
+	box[2][2] = 1;
 	box[3][2] = 0;
+	box[0][3] = 2;
+	box[1][3] = 1;
+	box[2][3] = 0;
 	box[3][3] = 3;
 	int row = (int)(p1[0] << 1) | p1[3];
 	int column = (int)(p1[1] << 1) | p1[2];
-	p3[2] = (box[row][column]>>1) & 0x01;
-	p3[3] = box[row][column] & 0x01;
+	p3[2] = (box[column][row]>>1) & 0x01;
+	p3[3] = box[column][row] & 0x01;
+	//printf("%d,%d = %d\n",column,row,box[column][row]);
+	//printf("%x%x\n",p3[2],p3[3]);
 }
 
 //The function fsubk(fk) for encryption as described in section C.3 of the S-DES documentation
-void fk(char* text_byte, char* K1){
+void fk(char* text_byte, char* K){
 		char L,R;
 		int i;
 		char *right = malloc(4);
@@ -177,16 +191,18 @@ void fk(char* text_byte, char* K1){
 			right[i] = text_byte[i+4];
 		}
 		char *perm_exp = malloc(8);
-		perm_exp[0] = right[4];
-		perm_exp[1] = right[1];
-		perm_exp[2] = right[2];
-		perm_exp[3] = right[3];
-		perm_exp[4] = right[4];
-		perm_exp[5] = right[3];
-		perm_exp[6] = right[4];
-		perm_exp[7] = right[1];
+		perm_exp[0] = right[3];
+		perm_exp[1] = right[0];
+		perm_exp[2] = right[1];
+		perm_exp[3] = right[2];
+		perm_exp[4] = right[1];
+		perm_exp[5] = right[2];
+		perm_exp[6] = right[3];
+		perm_exp[7] = right[0];
 		for(i=0;i<8;i++){
-			perm_exp[i] = perm_exp[i] ^ K1[i];
+			//printf("%02x to ",perm_exp[i]);
+			perm_exp[i] = perm_exp[i]^K[i];
+			//printf("%02x\n",perm_exp[i]);
 		}
 		char p0[4];
 		char p1[4];
@@ -266,6 +282,7 @@ int main(int argc, char* argv[]){
 		}
 		else init_vector = argv[3];
 		original_file_name = argv[4];
+		result_file_name = argv[5];
 		printf("The program will now decrypt the file %s with the key %s and the vector %s\n", original_file_name,init_key,init_vector);
 	}
 	else{
@@ -281,9 +298,19 @@ int main(int argc, char* argv[]){
 		}
 		else init_vector = argv[2];
 		original_file_name = argv[3];
+		result_file_name = argv[4];
 		printf("The program will now encrypt the file %s with the key %s and the vector %s\n", original_file_name,init_key,init_vector);
 	}
-	if(!decrypt){
+
+	//Open file
+	FILE *fin, *fout;
+	fin = fopen(original_file_name, "rb");	
+	fout = fopen(result_file_name,"wb");
+	if(fin==NULL || fout==NULL) {
+		printf("Error: cannot open files\n");
+		return 0;
+	}
+
 		//Produce k1 and k2
 		char* permutation = malloc(sizeof(char)*10);
 		int i;
@@ -291,7 +318,7 @@ int main(int argc, char* argv[]){
 			permutation[i] = init_key[i];
 		}
 		P10(permutation);
-		printf("Permutation: %s\n", permutation);
+		//printf("Permutation: %s\n", permutation);
 		char leftHalf[5];
 		char rightHalf[5];
 		for(i=0;i<5;i++){
@@ -323,45 +350,33 @@ int main(int argc, char* argv[]){
 		printf("Key2: %s\n",key2);
 		to_binary(key1,8);
 		to_binary(key2,8);
-		char tb1 = 0x01;
-		char tb2 = 0x23;
-		char *tb1a = malloc(8);
-		char *tb2a = malloc(8);
-		to_byte_array(tb1, tb1a,8);
-		to_byte_array(tb2, tb2a,8);
-		printf("Text: ");
-		for(i=0;i<8;i++) printf("%x",tb1a[i]);
-		printf("\n");
-		IP(tb1a);
-		printf("Initial Permutation: ");
-		for(i=0;i<8;i++) printf("%x",tb1a[i]);
-		printf("\n");
-		char text = 0x00;
-		for(i=0;i<4;i++){
-			text = text << 1;
-			text = text | tb1a[i];
+		int n;
+		char *text_byte = malloc(1);
+		char *write_byte = malloc(1);
+	if(!decrypt){
+		while(n = fread(text_byte,1,1,fin)){
+			char *bit_array = malloc(8);
+			to_byte_array(*text_byte, bit_array,8);
+			IP(bit_array);
+			fk(bit_array,key1);
+			SW(bit_array);
+			fk(bit_array,key2);
+			IP_inv(bit_array);
+			*write_byte = to_byte(bit_array,8);	
+			n = fwrite(write_byte,1,1,fout);
 		}
-		fk(tb1a,key1);
-		printf("fk: ");
-		for(i=0;i<8;i++) printf("%x",tb1a[i]);
-		printf("\n");
-		SW(tb1a);
-		printf("SW: ");
-		for(i=0;i<8;i++) printf("%x",tb1a[i]);
-		printf("\n");
-		fk(tb1a,key2);
-		printf("fk2: ");
-		for(i=0;i<8;i++) printf("%x",tb1a[i]);
-		printf("\n");
-		IP_inv(tb1a);
-		printf("Encrypted text: ");
-		for(i=0;i<8;i++) printf("%x",tb1a[i]);
-		printf("\n");
-		char byte1 = 0x00;
-		char byte2;
-		for(i=0;i<8;i++){
-			byte1 = byte1 << 1;
-			byte1 = byte1 | tb1a[i];
+	}
+	else{
+		while(n = fread(text_byte,1,1,fin)){
+			char *bit_array = malloc(8);
+			to_byte_array(*text_byte, bit_array,8);
+			IP(bit_array);
+			fk(bit_array,key2);
+			SW(bit_array);
+			fk(bit_array,key1);
+			IP_inv(bit_array);
+			*write_byte = to_byte(bit_array,8);	
+			n = fwrite(write_byte,1,1,fout);
 		}
 	}
 	return 0;
