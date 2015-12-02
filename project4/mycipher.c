@@ -20,10 +20,11 @@ void to_binary(char* key, int bytes){
 	free(temp);
 }
 
-void to_byte_array(char* byte, char* array, int bytes){
+void to_byte_array(char byte, char *array, int bytes){
 		int i;
 		for(i=0;i<bytes;i++){
-			array[i] = (*byte >> (bytes-i)) & 0x01;
+			array[i] = (byte >> ((bytes-1) - i)) & 0x01;
+			//printf("%x\n",array[i]);
 		}
 }
 
@@ -79,7 +80,7 @@ void P8(char* init_key){
 
 //Initial permutation(IP) for encryption as describes in section C.3 of the S-DES documentation
 void IP(char* init_key){
-	char permutation[8];
+	char* permutation = malloc(8);
 	permutation[0] = init_key[1];
 	permutation[1] = init_key[5];
 	permutation[2] = init_key[2];
@@ -96,14 +97,14 @@ void IP(char* init_key){
 
 void IP_inv(char* bytes){
 	char permutation[8];
-	permutation[1] = bytes[0];
-	permutation[5] = bytes[1];
-	permutation[2] = bytes[2];
 	permutation[0] = bytes[3];
+	permutation[1] = bytes[0];
+	permutation[2] = bytes[2];
 	permutation[3] = bytes[4];
-	permutation[7] = bytes[5];
 	permutation[4] = bytes[6];
+	permutation[5] = bytes[1];
 	permutation[6] = bytes[7];
+	permutation[7] = bytes[5];
 	int i;
 	for(i=0;i<8;i++){
 		bytes[i] = permutation[i];
@@ -161,14 +162,19 @@ void S1(char* p1, char* p3){
 }
 
 //The function fsubk(fk) for encryption as described in section C.3 of the S-DES documentation
-void fk(char text_byte, char* K1){
+void fk(char* text_byte, char* K1){
 		char L,R;
 		int i;
+		char *right = malloc(4);
+		/*
 		L = text_byte & 0xF0;
 		R = text_byte & 0x0F;
-		char *right = malloc(4);
 		for(i=0;i<4;i++){
 			right[i] = (R >> (4-i)) & 0x01;
+		}
+		*/
+		for(i=0;i<4;i++){
+			right[i] = text_byte[i+4];
 		}
 		char *perm_exp = malloc(8);
 		perm_exp[0] = right[4];
@@ -191,41 +197,41 @@ void fk(char text_byte, char* K1){
 		char* p3 = malloc(4);
 		S0(p0,p3);
 		S1(p1,p3);
-		char* p4a = malloc(4);
-		p4a[0] = p3[1];
-		p4a[1] = p3[3];
-		p4a[2] = p3[2];
-		p4a[3] = p3[0];
+		char* p4 = malloc(4);
+		p4[0] = p3[1];
+		p4[1] = p3[3];
+		p4[2] = p3[2];
+		p4[3] = p3[0];
+		for(i=0;i<4;i++){
+			text_byte[i] = text_byte[i] ^ p4[i];
+		}
+		/*
 		char p4 = 0x00;
 		for(i=0;i<4;i++){
 			p4 = p4 << 1;
 			p4 = p4 | p4a[i];
 		}
+		
 		p4 << 4;
 		L = L ^ p4;
+		*/
 		//free(right);
 		//free(perm_exp);
 		//free(p3);
 		//free(p4);
-		text_byte = L | R;
+		//return L | R;
 }
 
-void SW(char* byte){
+void SW(char* bytes){
 	char* perm = malloc(8);
-	char* bytes = malloc(8);
 	int i;
-	for(i=0;i<8;i++){
-		bytes[i] = (*byte >> (8-i)) & 0x01;
-	}
 	for(i=0;i<4;i++){
 		perm[i] = bytes[4+i];
 		perm[4+i] = bytes[i];
 	}
-	byte = 0x00;
 	for(i=0;i<8;i++){
-		byte = *byte << 1;
-		byte = *byte | perm[i];
-	}
+		bytes[i] = perm[i];
+	}	
 }
 
 
@@ -315,18 +321,48 @@ int main(int argc, char* argv[]){
 		char* key2 = malloc(sizeof(char)*8);
 		for(i=0;i<8;i++) key2[i] = permutation[i];
 		printf("Key2: %s\n",key2);
-		char* tb1 = malloc(1);
-		char* tb2 = malloc(1);
-		tb1 = 0x01;
-		tb2 = 0x23;
+		to_binary(key1,8);
+		to_binary(key2,8);
+		char tb1 = 0x01;
+		char tb2 = 0x23;
 		char *tb1a = malloc(8);
 		char *tb2a = malloc(8);
 		to_byte_array(tb1, tb1a,8);
 		to_byte_array(tb2, tb2a,8);
+		printf("Text: ");
+		for(i=0;i<8;i++) printf("%x",tb1a[i]);
+		printf("\n");
 		IP(tb1a);
-		to_binary(key1,8);
+		printf("Initial Permutation: ");
+		for(i=0;i<8;i++) printf("%x",tb1a[i]);
+		printf("\n");
+		char text = 0x00;
+		for(i=0;i<4;i++){
+			text = text << 1;
+			text = text | tb1a[i];
+		}
 		fk(tb1a,key1);
+		printf("fk: ");
+		for(i=0;i<8;i++) printf("%x",tb1a[i]);
+		printf("\n");
 		SW(tb1a);
+		printf("SW: ");
+		for(i=0;i<8;i++) printf("%x",tb1a[i]);
+		printf("\n");
+		fk(tb1a,key2);
+		printf("fk2: ");
+		for(i=0;i<8;i++) printf("%x",tb1a[i]);
+		printf("\n");
+		IP_inv(tb1a);
+		printf("Encrypted text: ");
+		for(i=0;i<8;i++) printf("%x",tb1a[i]);
+		printf("\n");
+		char byte1 = 0x00;
+		char byte2;
+		for(i=0;i<8;i++){
+			byte1 = byte1 << 1;
+			byte1 = byte1 | tb1a[i];
+		}
 	}
 	return 0;
 }
