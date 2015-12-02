@@ -2,6 +2,31 @@
 #include <stdlib.h>
 #include <string.h>
 
+//Converts a byte string from ASCII to binary
+void to_binary(char* key, int bytes){
+	char* temp = malloc(bytes);
+	int i;
+	for(i=0;i<bytes;i++){
+		if(key[i]=='1'){
+			temp[i] == 0x01;
+		}
+		else{
+			temp[i] == 0x00;
+		}
+	}
+	for(i=0;i<bytes;i++){
+		key[i] = temp[i];
+	}
+	free(temp);
+}
+
+void to_byte_array(char* byte, char* array, int bytes){
+		int i;
+		for(i=0;i<bytes;i++){
+			array[i] = (*byte >> (bytes-i)) & 0x01;
+		}
+}
+
 //10 bit permutation(P10) function for key generation as described in section C.2 of the S-DES documentaion
 void P10(char* init_key){
 	char permutation[10];
@@ -69,25 +94,81 @@ void IP(char* init_key){
 	}
 }
 
+void IP_inv(char* bytes){
+	char permutation[8];
+	permutation[1] = bytes[0];
+	permutation[5] = bytes[1];
+	permutation[2] = bytes[2];
+	permutation[0] = bytes[3];
+	permutation[3] = bytes[4];
+	permutation[7] = bytes[5];
+	permutation[4] = bytes[6];
+	permutation[6] = bytes[7];
+	int i;
+	for(i=0;i<8;i++){
+		bytes[i] = permutation[i];
+	}
+}
+
+//S0 Box for the fk function
+void S0(char* p0, char* p3){
+	char box[4][4];
+	box[0][0] = 1;
+	box[0][1] = 3;
+	box[0][2] = 0;
+	box[0][3] = 3;
+	box[1][0] = 0;
+	box[1][1] = 2;
+	box[1][2] = 2;
+	box[1][3] = 1;
+	box[2][0] = 3;
+	box[2][1] = 1;
+	box[2][2] = 1;
+	box[2][3] = 3;
+	box[3][0] = 2;
+	box[3][1] = 0;
+	box[3][2] = 3;
+	box[3][3] = 2;
+	int row = (int)(p0[0] << 1) | p0[3];
+	int column = (int)(p0[1] << 1) | p0[2];
+	p3[0] = (box[row][column]>>1) & 0x01;
+	p3[1] = box[row][column] & 0x01;
+}
+
+//S1 Box for the fk function
+void S1(char* p1, char* p3){
+	char box[4][4];
+	box[0][0] = 0;
+	box[0][1] = 2;
+	box[0][2] = 3;
+	box[0][3] = 2;
+	box[1][0] = 1;
+	box[1][1] = 0;
+	box[1][2] = 0;
+	box[1][3] = 1;
+	box[2][0] = 2;
+	box[2][1] = 1;
+	box[2][2] = 1;
+	box[2][3] = 0;
+	box[3][0] = 3;
+	box[3][1] = 3;
+	box[3][2] = 0;
+	box[3][3] = 3;
+	int row = (int)(p1[0] << 1) | p1[3];
+	int column = (int)(p1[1] << 1) | p1[2];
+	p3[2] = (box[row][column]>>1) & 0x01;
+	p3[3] = box[row][column] & 0x01;
+}
+
 //The function fsubk(fk) for encryption as described in section C.3 of the S-DES documentation
-char* fk(char text_byte, char* K1){
+void fk(char text_byte, char* K1){
 		char L,R;
-		char key = 0x00;
 		int i;
-		for(i=0;i<8;i++){
-			key = key << 1;
-			if(K1[i]=='1'){
-				key = key | 0x01;
-			}
-			else{
-				key = key & 0xFE;
-			}
-		}
 		L = text_byte & 0xF0;
 		R = text_byte & 0x0F;
 		char *right = malloc(4);
 		for(i=0;i<4;i++){
-			right[i] = (R >> (4-i)) & 0x01
+			right[i] = (R >> (4-i)) & 0x01;
 		}
 		char *perm_exp = malloc(8);
 		perm_exp[0] = right[4];
@@ -98,19 +179,54 @@ char* fk(char text_byte, char* K1){
 		perm_exp[5] = right[3];
 		perm_exp[6] = right[4];
 		perm_exp[7] = right[1];
-		char EP = 0x00;
 		for(i=0;i<8;i++){
-			EP = EP << 1;
-			if(perm_exp[i]==0x01){
-				EP = EP | 0x01;
-			}
-			else{
-				EP = EP & 0xFE;
-			}
+			perm_exp[i] = perm_exp[i] ^ K1[i];
 		}
+		char p0[4];
+		char p1[4];
+		for(i=0;i<4;i++){
+			p0[i] = perm_exp[i];
+			p1[i] = perm_exp[4+i];
+		}
+		char* p3 = malloc(4);
+		S0(p0,p3);
+		S1(p1,p3);
+		char* p4a = malloc(4);
+		p4a[0] = p3[1];
+		p4a[1] = p3[3];
+		p4a[2] = p3[2];
+		p4a[3] = p3[0];
+		char p4 = 0x00;
+		for(i=0;i<4;i++){
+			p4 = p4 << 1;
+			p4 = p4 | p4a[i];
+		}
+		p4 << 4;
+		L = L ^ p4;
+		//free(right);
+		//free(perm_exp);
+		//free(p3);
+		//free(p4);
+		text_byte = L | R;
 }
 
-
+void SW(char* byte){
+	char* perm = malloc(8);
+	char* bytes = malloc(8);
+	int i;
+	for(i=0;i<8;i++){
+		bytes[i] = (*byte >> (8-i)) & 0x01;
+	}
+	for(i=0;i<4;i++){
+		perm[i] = bytes[4+i];
+		perm[4+i] = bytes[i];
+	}
+	byte = 0x00;
+	for(i=0;i<8;i++){
+		byte = *byte << 1;
+		byte = *byte | perm[i];
+	}
+}
 
 
 int main(int argc, char* argv[]){
@@ -199,7 +315,18 @@ int main(int argc, char* argv[]){
 		char* key2 = malloc(sizeof(char)*8);
 		for(i=0;i<8;i++) key2[i] = permutation[i];
 		printf("Key2: %s\n",key2);
-		
+		char* tb1 = malloc(1);
+		char* tb2 = malloc(1);
+		tb1 = 0x01;
+		tb2 = 0x23;
+		char *tb1a = malloc(8);
+		char *tb2a = malloc(8);
+		to_byte_array(tb1, tb1a,8);
+		to_byte_array(tb2, tb2a,8);
+		IP(tb1a);
+		to_binary(key1,8);
+		fk(tb1a,key1);
+		SW(tb1a);
 	}
 	return 0;
 }
